@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Switch from '../components/Switch'
-import type { GameEntry, GameProfileKey } from '../../../shared/types'
+import type { GameEntry, GameProfileKey, TweakDef } from '../../../shared/types'
 
 const PROFILE_LABELS: Record<GameProfileKey, string> = {
   citizenPriv: 'Prioridad de Red',
@@ -8,17 +8,35 @@ const PROFILE_LABELS: Record<GameProfileKey, string> = {
   citizenClean: 'Config. Limpia'
 }
 
+const GAME_ICONS: Record<string, string> = {
+  gameMode: '🎮',
+  gaming: '🕹️',
+  gameDvrFse: '🖥️',
+  corePin: '📌',
+  autoCpuSet: '⚡'
+}
+
 export default function JuegosPage(): JSX.Element {
   const [games, setGames] = useState<GameEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<string[]>([])
+  const [globalTweaks, setGlobalTweaks] = useState<TweakDef[]>([])
+  const [pendingTweak, setPendingTweak] = useState<string | null>(null)
 
   useEffect(() => {
     load()
+    window.api.tweaks.list().then((list) => setGlobalTweaks(list.filter((t) => t.category === 'games')))
     const unsub = window.api.games.onNotification((msg) => setNotifications((prev) => [...prev.slice(-10), msg]))
     return unsub
   }, [])
+
+  async function toggleGlobalTweak(id: string, next: boolean): Promise<void> {
+    setPendingTweak(id)
+    const res = await window.api.tweaks.toggle(id, next)
+    setGlobalTweaks((prev) => prev.map((t) => (t.id === id ? { ...t, enabled: res.enabled } : t)))
+    setPendingTweak(null)
+  }
 
   async function load(): Promise<void> {
     setLoading(true)
@@ -51,6 +69,25 @@ export default function JuegosPage(): JSX.Element {
 
   return (
     <>
+      <div className="grid-auto" style={{ marginBottom: 22 }}>
+        {globalTweaks.map((t) => (
+          <div className="tweak-card" key={t.id}>
+            <div className="top-row">
+              <div className="left">
+                <div className="ico-box">{GAME_ICONS[t.id] ?? '🎮'}</div>
+                <div>
+                  <b>{t.label}</b>
+                  <span className={`pill ${t.enabled ? '' : 'off'}`}>{t.enabled ? 'Activado' : 'Desactivado'}</span>
+                </div>
+              </div>
+              <Switch checked={t.enabled} disabled={pendingTweak === t.id} onChange={(v) => toggleGlobalTweak(t.id, v)} />
+            </div>
+            <p>{t.description}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="section-label">Tus juegos</div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <button className="btn primary" onClick={addGame}>
           + Agregar Juego

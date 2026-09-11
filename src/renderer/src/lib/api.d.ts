@@ -27,6 +27,8 @@ export interface TomzBoostApi {
   tweaks: {
     list: () => Promise<TweakDef[]>
     toggle: (id: string, enabled: boolean) => Promise<TweakToggleResult>
+    getWin32Priority: () => Promise<string | null>
+    setWin32Priority: (preset: string) => Promise<{ ok: boolean; message: string }>
   }
   debloat: {
     list: () => Promise<DebloatItem[]>

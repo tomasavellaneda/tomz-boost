@@ -1,8 +1,11 @@
 import si from 'systeminformation'
 import { regQuery, regSet } from '../utils/registry'
-import { runCmd, runPowerShell } from '../utils/shell'
+import { runCmd, runPowerShell, runPowerShellJson } from '../utils/shell'
 import { saveBackup, getBackup } from './backup'
 import { findGpuAdapterKeys, setValueOnAdapters } from './gpuRegistry'
+import { getMsiState, setMsiModeForGpuAndNic } from './msiMode'
+import { isCorePinEnabled, setCorePinEnabled } from './corePin'
+import { isAutoCpuSetEnabled, setAutoCpuSetEnabled } from './autoCpuSet'
 import type { TweakCategory, TweakDef, TweakToggleResult } from '../../shared/types'
 
 interface TweakRuntime {
@@ -29,11 +32,30 @@ const CURATED_TASKS = [
 const HIGH_PERF_GUID = '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'
 const BALANCED_GUID = '381b4222-f694-41f0-9685-ff5bb260df2e'
 
+const START_TYPE_MAP: Record<string, number> = { Automatic: 2, Manual: 3, Disabled: 4 }
+
 async function serviceStartType(name: string): Promise<number | null> {
   const res = await runPowerShell(`(Get-Service -Name '${name}' -ErrorAction SilentlyContinue).StartType`)
   if (!res.stdout) return null
-  const map: Record<string, number> = { Automatic: 2, Manual: 3, Disabled: 4 }
-  return map[res.stdout.trim()] ?? null
+  return START_TYPE_MAP[res.stdout.trim()] ?? null
+}
+
+interface ServiceRow {
+  Name: string
+  StartType: string
+}
+
+/** Consulta varios servicios en un solo proceso de PowerShell (evita N spawns). */
+async function serviceStartTypeBatch(names: string[]): Promise<Record<string, number | null>> {
+  const list = names.map((n) => `'${n}'`).join(',')
+  const rows = await runPowerShellJson<ServiceRow[] | ServiceRow>(
+    `Get-Service -Name ${list} -ErrorAction SilentlyContinue | Select-Object Name, StartType`
+  )
+  const out: Record<string, number | null> = {}
+  const arr = rows ? (Array.isArray(rows) ? rows : [rows]) : []
+  for (const n of names) out[n] = null
+  for (const row of arr) out[row.Name] = START_TYPE_MAP[row.StartType] ?? null
+  return out
 }
 
 async function setServiceStartType(name: string, type: 'Automatic' | 'Manual' | 'Disabled'): Promise<boolean> {
@@ -110,13 +132,12 @@ const TWEAKS: TweakRuntime[] = [
     label: 'Servicios',
     description: 'Desactiva servicios de telemetria y no esenciales en segundo plano (DiagTrack, MapsBroker, etc).',
     async getState() {
-      const states = await Promise.all(CURATED_SERVICES.map((s) => serviceStartType(s)))
-      return states.every((s) => s === 4 || s === null)
+      const states = await serviceStartTypeBatch(CURATED_SERVICES)
+      return CURATED_SERVICES.every((s) => states[s] === 4 || states[s] === null)
     },
     async apply(enabled) {
       if (enabled) {
-        const originals: Record<string, number | null> = {}
-        for (const s of CURATED_SERVICES) originals[s] = await serviceStartType(s)
+        const originals = await serviceStartTypeBatch(CURATED_SERVICES)
         saveBackup('services', originals)
         const results = await Promise.all(CURATED_SERVICES.map((s) => setServiceStartType(s, 'Disabled')))
         return { ok: results.every(Boolean), message: 'Servicios no esenciales desactivados.' }
@@ -149,16 +170,24 @@ const TWEAKS: TweakRuntime[] = [
     label: 'Tareas Agendadas',
     description: 'Desactiva tareas agendadas de telemetria/diagnostico que corren en segundo plano.',
     async getState() {
-      const results = await Promise.all(
-        CURATED_TASKS.map((t) => runCmd('schtasks.exe', ['/query', '/tn', t, '/fo', 'LIST']))
-      )
-      return results.every((r) => !r.ok || r.stdout.toLowerCase().includes('deshabilitada') || r.stdout.toLowerCase().includes('disabled'))
+      // Un solo proceso de PowerShell consulta las 5 tareas (Get-ScheduledTask
+      // es un cmdlet nativo, no spawnea schtasks.exe por cada llamada).
+      const script = CURATED_TASKS.map(
+        (t) => `Get-ScheduledTask -TaskPath "$(Split-Path '${t}')\\" -TaskName "$(Split-Path '${t}' -Leaf)" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty State`
+      ).join('; ')
+      const res = await runPowerShell(script)
+      const lines = res.stdout.split(/\r?\n/).filter(Boolean)
+      if (lines.length === 0) return false
+      return lines.every((l) => l.trim() === 'Disabled')
     },
     async apply(enabled) {
-      const flag = enabled ? '/disable' : '/enable'
-      const results = await Promise.all(CURATED_TASKS.map((t) => runCmd('schtasks.exe', ['/change', '/tn', t, flag])))
+      const verb = enabled ? 'Disable-ScheduledTask' : 'Enable-ScheduledTask'
+      const script = CURATED_TASKS.map(
+        (t) => `${verb} -TaskPath "$(Split-Path '${t}')\\" -TaskName "$(Split-Path '${t}' -Leaf)" -ErrorAction SilentlyContinue`
+      ).join('; ')
+      const res = await runPowerShell(script)
       return {
-        ok: results.some((r) => r.ok),
+        ok: res.ok,
         message: enabled ? 'Tareas agendadas desactivadas.' : 'Tareas agendadas reactivadas.'
       }
     }
@@ -217,12 +246,11 @@ const TWEAKS: TweakRuntime[] = [
       return res.stdout.trim().toLowerCase() === 'disabled'
     },
     async apply(enabled) {
-      const res = await runPowerShell(
-        `netsh int tcp set global autotuninglevel=${enabled ? 'disabled' : 'normal'}; netsh int tcp set global ecncapability=${
-          enabled ? 'disabled' : 'enabled'
-        }`
-      )
-      return { ok: res.ok, message: enabled ? 'Stack TCP optimizado.' : 'Stack TCP restaurado.' }
+      const results = await Promise.all([
+        runCmd('netsh.exe', ['int', 'tcp', 'set', 'global', `autotuninglevel=${enabled ? 'disabled' : 'normal'}`]),
+        runCmd('netsh.exe', ['int', 'tcp', 'set', 'global', `ecncapability=${enabled ? 'disabled' : 'enabled'}`])
+      ])
+      return { ok: results.every((r) => r.ok), message: enabled ? 'Stack TCP optimizado.' : 'Stack TCP restaurado.' }
     }
   },
   {
@@ -231,16 +259,16 @@ const TWEAKS: TweakRuntime[] = [
     label: 'Power Mod',
     description: 'Activa el plan de energia de maximo rendimiento y desactiva la hibernacion.',
     async getState() {
-      const res = await runPowerShell('(powercfg /getactivescheme)')
+      const res = await runCmd('powercfg.exe', ['/getactivescheme'])
       return res.stdout.includes(HIGH_PERF_GUID)
     },
     async apply(enabled) {
-      const res = await runPowerShell(
-        enabled
-          ? `powercfg /setactive ${HIGH_PERF_GUID}; powercfg /hibernate off`
-          : `powercfg /setactive ${BALANCED_GUID}; powercfg /hibernate on`
-      )
-      return { ok: res.ok, message: enabled ? 'Maximo rendimiento activado, hibernacion desactivada.' : 'Plan balanceado restaurado.' }
+      const r1 = await runCmd('powercfg.exe', ['/setactive', enabled ? HIGH_PERF_GUID : BALANCED_GUID])
+      const r2 = await runCmd('powercfg.exe', ['/hibernate', enabled ? 'off' : 'on'])
+      return {
+        ok: r1.ok && r2.ok,
+        message: enabled ? 'Maximo rendimiento activado, hibernacion desactivada.' : 'Plan balanceado restaurado.'
+      }
     }
   },
   {
@@ -249,17 +277,121 @@ const TWEAKS: TweakRuntime[] = [
     label: 'Dispositivos USB',
     description: 'Impide que Windows suspenda perifericos USB para ahorrar energia (reduce input lag).',
     async getState() {
-      const res = await runPowerShell(
-        'powercfg /q SCHEME_CURRENT SUB_USB USBSELECTSUSPEND'
-      )
+      const res = await runCmd('powercfg.exe', ['/q', 'SCHEME_CURRENT', 'SUB_USB', 'USBSELECTSUSPEND'])
       return /Current AC Power Setting Index:\s*0x0/i.test(res.stdout)
     },
     async apply(enabled) {
       const value = enabled ? '0' : '1'
-      const res = await runPowerShell(
-        `powercfg /setacvalueindex SCHEME_CURRENT SUB_USB USBSELECTSUSPEND ${value}; powercfg /setdcvalueindex SCHEME_CURRENT SUB_USB USBSELECTSUSPEND ${value}; powercfg /setactive SCHEME_CURRENT`
+      const r1 = await Promise.all([
+        runCmd('powercfg.exe', ['/setacvalueindex', 'SCHEME_CURRENT', 'SUB_USB', 'USBSELECTSUSPEND', value]),
+        runCmd('powercfg.exe', ['/setdcvalueindex', 'SCHEME_CURRENT', 'SUB_USB', 'USBSELECTSUSPEND', value])
+      ])
+      const r2 = await runCmd('powercfg.exe', ['/setactive', 'SCHEME_CURRENT'])
+      return {
+        ok: r1.every((r) => r.ok) && r2.ok,
+        message: enabled ? 'Suspension selectiva USB desactivada.' : 'Suspension selectiva USB restaurada.'
+      }
+    }
+  },
+  {
+    id: 'dpc',
+    category: 'general',
+    label: 'DPC',
+    description: 'Distribuye los timers del kernel entre nucleos para reducir latencia/audio glitches.',
+    async getState() {
+      const v = await regQuery('HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel', 'DistributeTimers')
+      return v === '1'
+    },
+    async apply(enabled) {
+      const ok = await regSet(
+        'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel',
+        'DistributeTimers',
+        'REG_DWORD',
+        enabled ? '1' : '0'
       )
-      return { ok: res.ok, message: enabled ? 'Suspension selectiva USB desactivada.' : 'Suspension selectiva USB restaurada.' }
+      return { ok, message: enabled ? 'Timers distribuidos entre nucleos.' : 'Comportamiento por defecto restaurado.', requiresRestart: true }
+    }
+  },
+  {
+    id: 'msiIrq',
+    category: 'general',
+    label: 'MSI/IRQ Features',
+    description: 'Activa el modo MSI (interrupt-based) con prioridad alta para GPU y adaptador de red.',
+    requiresRestart: true,
+    async getState() {
+      return getMsiState()
+    },
+    async apply(enabled) {
+      const result = await setMsiModeForGpuAndNic(enabled)
+      return { ok: result.ok, message: result.message, requiresRestart: true }
+    }
+  },
+  {
+    id: 'graphicsTweaks',
+    category: 'general',
+    label: 'Graphics Tweaks',
+    description: 'Activa Hardware-accelerated GPU Scheduling para menos stutter en el pipeline de video.',
+    requiresRestart: true,
+    async getState() {
+      const v = await regQuery('HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers', 'HwSchMode')
+      return v === '2'
+    },
+    async apply(enabled) {
+      const ok = await regSet(
+        'HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers',
+        'HwSchMode',
+        'REG_DWORD',
+        enabled ? '2' : '1'
+      )
+      return { ok, message: enabled ? 'GPU Scheduling activado.' : 'GPU Scheduling restaurado.', requiresRestart: true }
+    }
+  },
+  {
+    id: 'ifeo',
+    category: 'general',
+    label: 'IFEO',
+    description: 'Ajusta la prioridad de procesos de sistema conocidos por consumir CPU en segundo plano.',
+    async getState() {
+      const v = await regQuery(
+        'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\SearchIndexer.exe\\PerfOptions',
+        'CpuPriorityClass'
+      )
+      return v === '1'
+    },
+    async apply(enabled) {
+      const targets = ['SearchIndexer.exe', 'OneDrive.exe', 'WidgetService.exe']
+      const results = await Promise.all(
+        targets.map((exe) =>
+          regSet(
+            `HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\${exe}\\PerfOptions`,
+            'CpuPriorityClass',
+            'REG_DWORD',
+            enabled ? '1' : '3'
+          )
+        )
+      )
+      return { ok: results.every(Boolean), message: enabled ? 'Prioridad de procesos de fondo reducida.' : 'Prioridad de procesos de fondo restaurada.' }
+    }
+  },
+  {
+    id: 'winDefender',
+    category: 'general',
+    label: 'Win Defender',
+    description: 'Pausa la proteccion en tiempo real mientras jugas (si Tamper Protection lo permite).',
+    async getState() {
+      const res = await runPowerShellJson<{ DisableRealtimeMonitoring: boolean }>('Get-MpPreference | Select-Object DisableRealtimeMonitoring')
+      return res?.DisableRealtimeMonitoring === true
+    },
+    async apply(enabled) {
+      const res = await runPowerShell(`Set-MpPreference -DisableRealtimeMonitoring ${enabled ? '$true' : '$false'}`)
+      if (!res.ok) {
+        return {
+          ok: false,
+          message:
+            'No se pudo cambiar (Tamper Protection esta activo). Desactivalo manualmente en Seguridad de Windows > Proteccion contra virus para poder usar este tweak.'
+        }
+      }
+      return { ok: true, message: enabled ? 'Proteccion en tiempo real pausada.' : 'Proteccion en tiempo real restaurada.' }
     }
   },
   {
@@ -445,32 +577,122 @@ const TWEAKS: TweakRuntime[] = [
       const ok = await setValueOnAdapters(keys, 'DisableSAMUPowerGating', 'REG_DWORD', enabled ? '1' : '0')
       return { ok, message: enabled ? 'UMD ajustado para rendimiento.' : 'UMD restaurado.', requiresRestart: true }
     }
+  },
+  {
+    id: 'gameMode',
+    category: 'games',
+    label: 'Game Mode',
+    description: 'Activa el Modo de Juego de Windows automaticamente al detectar un juego.',
+    async getState() {
+      const v = await regQuery('HKCU\\Software\\Microsoft\\GameBar', 'AutoGameModeEnabled')
+      return v !== '0'
+    },
+    async apply(enabled) {
+      const ok = await regSet('HKCU\\Software\\Microsoft\\GameBar', 'AutoGameModeEnabled', 'REG_DWORD', enabled ? '1' : '0')
+      return { ok, message: enabled ? 'Game Mode activado.' : 'Game Mode desactivado.' }
+    }
+  },
+  {
+    id: 'gaming',
+    category: 'games',
+    label: 'Gaming',
+    description: 'Prioridad maxima para el juego activo (perfil MMCSS "Games": GPU Priority 8, sin limite de CPU).',
+    async getState() {
+      const v = await regQuery(
+        'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games',
+        'GPU Priority'
+      )
+      return v === '8'
+    },
+    async apply(enabled) {
+      const base = 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games'
+      const results = await Promise.all([
+        regSet(base, 'GPU Priority', 'REG_DWORD', enabled ? '8' : '2'),
+        regSet(base, 'Priority', 'REG_DWORD', enabled ? '6' : '2'),
+        regSet(base, 'Scheduling Category', 'REG_SZ', enabled ? 'High' : 'Medium'),
+        regSet(
+          'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile',
+          'SystemResponsiveness',
+          'REG_DWORD',
+          enabled ? '0' : '20'
+        )
+      ])
+      return { ok: results.every(Boolean), message: enabled ? 'Prioridad maxima para el juego activo.' : 'Perfil MMCSS restaurado.' }
+    }
+  },
+  {
+    id: 'gameDvrFse',
+    category: 'games',
+    label: 'Game DVR & FSE',
+    description: 'Desactiva la grabacion en segundo plano de Xbox Game Bar y ajusta el modo de pantalla completa.',
+    async getState() {
+      const v = await regQuery('HKCU\\System\\GameConfigStore', 'GameDVR_Enabled')
+      return v === '0'
+    },
+    async apply(enabled) {
+      const results = await Promise.all([
+        regSet('HKCU\\System\\GameConfigStore', 'GameDVR_Enabled', 'REG_DWORD', enabled ? '0' : '1'),
+        regSet('HKCU\\System\\GameConfigStore', 'GameDVR_FSEBehaviorMode', 'REG_DWORD', enabled ? '2' : '0'),
+        regSet('HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR', 'AllowGameDVR', 'REG_DWORD', enabled ? '0' : '1')
+      ])
+      return { ok: results.every(Boolean), message: enabled ? 'Game DVR y optimizaciones de pantalla completa desactivadas.' : 'Game DVR restaurado.' }
+    }
+  },
+  {
+    id: 'corePin',
+    category: 'games',
+    label: 'CorePin',
+    description: 'Prende un watcher que ata procesos de fondo conocidos (Discord, Steam, navegador) a los ultimos nucleos.',
+    async getState() {
+      return isCorePinEnabled()
+    },
+    async apply(enabled) {
+      setCorePinEnabled(enabled)
+      return { ok: true, message: enabled ? 'CorePin activado: revisando procesos de fondo cada 20s.' : 'CorePin desactivado.' }
+    }
+  },
+  {
+    id: 'autoCpuSet',
+    category: 'games',
+    label: 'Auto CPU Set',
+    description: 'Permite que los perfiles automaticos de la pestana Juegos se apliquen solos cuando detectan el juego corriendo.',
+    async getState() {
+      return isAutoCpuSetEnabled()
+    },
+    async apply(enabled) {
+      setAutoCpuSetEnabled(enabled)
+      return { ok: true, message: enabled ? 'Auto CPU Set activado.' : 'Auto CPU Set desactivado (los perfiles solo se aplican manualmente).' }
+    }
   }
 ]
 
 export async function listTweaks(): Promise<TweakDef[]> {
   const vendor = await getVendor()
-  const out: TweakDef[] = []
-  for (const t of TWEAKS) {
-    const gateSatisfied = t.gate === 'nvidia' ? vendor.nvidia : t.gate === 'amd' ? vendor.amd : true
-    let enabled = false
-    try {
-      enabled = gateSatisfied ? await t.getState() : false
-    } catch {
-      enabled = false
-    }
-    out.push({
-      id: t.id,
-      category: t.category,
-      label: t.label,
-      description: t.description,
-      enabled,
-      requiresRestart: t.requiresRestart ?? false,
-      gate: t.gate ?? null,
-      gateSatisfied
+  // Todos los tweaks se consultan en paralelo: antes se esperaba uno por uno
+  // (hasta ~19 spawns de proceso en serie), lo que hacia que la pantalla de
+  // Tweaks tardara varios segundos en cargar.
+  const results = await Promise.all(
+    TWEAKS.map(async (t) => {
+      const gateSatisfied = t.gate === 'nvidia' ? vendor.nvidia : t.gate === 'amd' ? vendor.amd : true
+      let enabled = false
+      try {
+        enabled = gateSatisfied ? await t.getState() : false
+      } catch {
+        enabled = false
+      }
+      return {
+        id: t.id,
+        category: t.category,
+        label: t.label,
+        description: t.description,
+        enabled,
+        requiresRestart: t.requiresRestart ?? false,
+        gate: t.gate ?? null,
+        gateSatisfied
+      }
     })
-  }
-  return out
+  )
+  return results
 }
 
 export async function toggleTweak(id: string, enabled: boolean): Promise<TweakToggleResult> {

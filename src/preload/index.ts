@@ -32,7 +32,10 @@ const api = {
   tweaks: {
     list: (): Promise<TweakDef[]> => ipcRenderer.invoke('tweaks:list'),
     toggle: (id: string, enabled: boolean): Promise<TweakToggleResult> =>
-      ipcRenderer.invoke('tweaks:toggle', id, enabled)
+      ipcRenderer.invoke('tweaks:toggle', id, enabled),
+    getWin32Priority: (): Promise<string | null> => ipcRenderer.invoke('tweaks:win32PriorityGet'),
+    setWin32Priority: (preset: string): Promise<{ ok: boolean; message: string }> =>
+      ipcRenderer.invoke('tweaks:win32PrioritySet', preset)
   },
   debloat: {
     list: (): Promise<DebloatItem[]> => ipcRenderer.invoke('debloat:list'),

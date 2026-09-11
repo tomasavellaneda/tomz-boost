@@ -4,15 +4,27 @@ import type { TweakDef } from '../../../shared/types'
 
 type Tab = 'general' | 'nvidia' | 'amd'
 
+const WIN32_PRESETS = ['1A', '2A', '26', '28', 'FFFF311']
+
 export default function TweaksPage(): JSX.Element {
   const [tab, setTab] = useState<Tab>('general')
   const [tweaks, setTweaks] = useState<TweakDef[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState<string | null>(null)
+  const [win32Preset, setWin32Preset] = useState<string | null>(null)
+  const [win32Busy, setWin32Busy] = useState(false)
 
   useEffect(() => {
     load()
+    window.api.tweaks.getWin32Priority().then(setWin32Preset)
   }, [])
+
+  async function applyWin32(preset: string): Promise<void> {
+    setWin32Busy(true)
+    const res = await window.api.tweaks.setWin32Priority(preset)
+    if (res.ok) setWin32Preset(preset)
+    setWin32Busy(false)
+  }
 
   async function load(): Promise<void> {
     setLoading(true)
@@ -43,6 +55,29 @@ export default function TweaksPage(): JSX.Element {
 
       {gateBlocked && (
         <div className="banner">Estos ajustes exigen una GPU {tab === 'nvidia' ? 'NVIDIA' : 'AMD'}.</div>
+      )}
+
+      {tab === 'general' && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-title" style={{ marginBottom: 10 }}>
+            <div className="ico-box">≡</div>
+            <div>
+              <b>Win32Priority</b>
+              <small>Preset de prioridad de separacion del Win32</small>
+            </div>
+          </div>
+          <div className="tabs">
+            {WIN32_PRESETS.map((p) => (
+              <div
+                key={p}
+                className={`tab ${win32Preset === p ? 'active' : ''}`}
+                onClick={() => !win32Busy && applyWin32(p)}
+              >
+                {p}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {loading ? (

@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow, shell } from 'electron'
 import { getSnapshot, getBiosInfo, getDiagnostics } from './monitor'
 import { listTweaks, toggleTweak } from './tweaks/catalog'
+import { getWin32PriorityPreset, applyWin32PriorityPreset } from './tweaks/win32Priority'
 import { listDebloatable, removeDebloatable } from './debloat'
 import { listDrivers } from './drivers'
 import { exportBiosInfo, openExportFolder, runAutoConfig, importTweakProfile, enterFirmware } from './biosTool'
@@ -24,6 +25,8 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
 
   ipcMain.handle('tweaks:list', () => listTweaks())
   ipcMain.handle('tweaks:toggle', (_e, id: string, enabled: boolean) => toggleTweak(id, enabled))
+  ipcMain.handle('tweaks:win32PriorityGet', () => getWin32PriorityPreset())
+  ipcMain.handle('tweaks:win32PrioritySet', (_e, preset: string) => applyWin32PriorityPreset(preset))
 
   ipcMain.handle('debloat:list', () => listDebloatable())
   ipcMain.handle('debloat:remove', (_e, packageNames: string[]) => removeDebloatable(packageNames))

@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 import { JsonStore } from './utils/store'
 import { runPowerShellJson } from './utils/shell'
 import { setProcessTuning, getCpuTopology } from './affinity'
+import { isAutoCpuSetEnabled } from './tweaks/autoCpuSet'
 import type { GameEntry, GameProfileKey } from '../shared/types'
 
 const store = new JsonStore<GameEntry[]>('games.json', [])
@@ -95,6 +96,7 @@ let watcherHandle: NodeJS.Timeout | null = null
 export function startGameWatcher(onEvent: (message: string) => void): void {
   if (watcherHandle) return
   watcherHandle = setInterval(async () => {
+    if (!isAutoCpuSetEnabled()) return
     const games = store.get().filter((g) => g.autoWatch)
     for (const game of games) {
       const pid = await findRunningPid(game.exeName)

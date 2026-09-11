@@ -3,6 +3,7 @@ import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { getSnapshot } from './monitor'
 import { startGameWatcher } from './games'
+import { initCorePinWatcher } from './tweaks/corePin'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -66,6 +67,7 @@ app.whenReady().then(() => {
   startGameWatcher((message) => {
     mainWindow?.webContents.send('games:notification', message)
   })
+  initCorePinWatcher()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

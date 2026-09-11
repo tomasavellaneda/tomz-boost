@@ -62,7 +62,7 @@ export interface SysSnapshot {
   os: OsSnapshot
 }
 
-export type TweakCategory = 'general' | 'nvidia' | 'amd' | 'fixes'
+export type TweakCategory = 'general' | 'nvidia' | 'amd' | 'fixes' | 'games'
 
 export interface TweakDef {
   id: string
