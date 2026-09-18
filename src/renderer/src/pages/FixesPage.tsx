@@ -8,7 +8,7 @@ export default function FixesPage(): JSX.Element {
   const [pending, setPending] = useState<string | null>(null)
 
   useEffect(() => {
-    window.api.tweaks.list().then((list) => {
+    window.api.tweaks.list().then(({ tweaks: list }) => {
       setTweaks(list.filter((t) => t.category === 'fixes'))
       setLoading(false)
     })
@@ -37,7 +37,6 @@ export default function FixesPage(): JSX.Element {
             </div>
             <Switch checked={t.enabled} disabled={pending === t.id} onChange={(v) => handleToggle(t.id, v)} />
           </div>
-          <p>{t.description}</p>
           {t.requiresRestart && <span className="warn">Requiere reiniciar Windows para aplicarse por completo.</span>}
         </div>
       ))}

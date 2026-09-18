@@ -1,57 +1,120 @@
-import { dialog, BrowserWindow } from 'electron'
+import { app, dialog, BrowserWindow } from 'electron'
 import { basename } from 'path'
 import { randomUUID } from 'crypto'
 import { JsonStore } from './utils/store'
 import { runPowerShellJson } from './utils/shell'
 import { setProcessTuning, getCpuTopology } from './affinity'
 import { isAutoCpuSetEnabled } from './tweaks/autoCpuSet'
-import type { GameEntry, GameProfileKey } from '../shared/types'
+import type { GameEntry, GameProfileKey, GamesOpResult } from '../shared/types'
 
 const store = new JsonStore<GameEntry[]>('games.json', [])
 
-export function listGames(): GameEntry[] {
-  return store.get()
-}
-
-export async function addGame(win: BrowserWindow): Promise<GameEntry[]> {
-  const res = await dialog.showOpenDialog(win, {
-    title: 'Elegi el ejecutable del juego',
-    filters: [{ name: 'Ejecutables', extensions: ['exe'] }],
-    properties: ['openFile']
-  })
-  if (res.canceled || res.filePaths.length === 0) return store.get()
-  const exePath = res.filePaths[0]
-  const exeName = basename(exePath)
-  const entry: GameEntry = {
-    id: randomUUID(),
-    name: exeName.replace(/\.exe$/i, ''),
-    exePath,
-    exeName,
-    profile: 'citizenClean',
-    autoWatch: false,
-    lastAppliedAt: null
+async function extractExeIcon(exePath: string): Promise<string | null> {
+  try {
+    const image = await app.getFileIcon(exePath, { size: 'large' })
+    return image.toDataURL()
+  } catch {
+    return null
   }
-  const all = [...store.get(), entry]
-  store.set(all)
-  return all
 }
 
-export function removeGame(id: string): GameEntry[] {
-  const all = store.get().filter((g) => g.id !== id)
-  store.set(all)
-  return all
+/**
+ * Persiste games.json. Si writeFileSync falla, el cache de JsonStore no se
+ * pisa: devolvemos el ultimo estado realmente en disco, no el que se intento guardar.
+ */
+function saveGames(next: GameEntry[]): GamesOpResult {
+  try {
+    store.set(next)
+    return { ok: true, games: next, message: 'Lista de juegos guardada.' }
+  } catch (err) {
+    console.error(`[games] fallo al guardar games.json: ${String(err)}`)
+    return {
+      ok: false,
+      games: store.get(),
+      error: String(err),
+      message: `No se pudo guardar la lista de juegos. ${String(err)}`
+    }
+  }
 }
 
-export function setAutoWatch(id: string, enabled: boolean): GameEntry[] {
-  const all = store.get().map((g) => (g.id === id ? { ...g, autoWatch: enabled } : g))
-  store.set(all)
-  return all
+function failGames(op: string, err: unknown): GamesOpResult {
+  console.error(`[games] fallo en ${op}: ${String(err)}`)
+  return {
+    ok: false,
+    games: store.get(),
+    error: String(err),
+    message: `No se pudo completar ${op}. ${String(err)}`
+  }
 }
 
-export function setProfile(id: string, profile: GameProfileKey): GameEntry[] {
-  const all = store.get().map((g) => (g.id === id ? { ...g, profile } : g))
-  store.set(all)
-  return all
+export async function listGames(): Promise<GamesOpResult> {
+  try {
+    const all = store.get()
+    let changed = false
+    const next = await Promise.all(
+      all.map(async (g) => {
+        if (g.iconDataUrl) return g
+        const icon = await extractExeIcon(g.exePath)
+        if (!icon) return g
+        changed = true
+        return { ...g, iconDataUrl: icon }
+      })
+    )
+    if (changed) return saveGames(next)
+    return { ok: true, games: next, message: 'Lista de juegos cargada.' }
+  } catch (err) {
+    return failGames('listGames', err)
+  }
+}
+
+export async function addGame(win: BrowserWindow): Promise<GamesOpResult> {
+  try {
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Elegi el ejecutable del juego',
+      filters: [{ name: 'Ejecutables', extensions: ['exe'] }],
+      properties: ['openFile']
+    })
+    if (res.canceled || res.filePaths.length === 0) return listGames()
+    const exePath = res.filePaths[0]
+    const exeName = basename(exePath)
+    const entry: GameEntry = {
+      id: randomUUID(),
+      name: exeName.replace(/\.exe$/i, ''),
+      exePath,
+      exeName,
+      profile: 'citizenClean',
+      autoWatch: false,
+      lastAppliedAt: null,
+      iconDataUrl: await extractExeIcon(exePath)
+    }
+    return saveGames([...store.get(), entry])
+  } catch (err) {
+    return failGames('addGame', err)
+  }
+}
+
+export function removeGame(id: string): GamesOpResult {
+  try {
+    return saveGames(store.get().filter((g) => g.id !== id))
+  } catch (err) {
+    return failGames('removeGame', err)
+  }
+}
+
+export function setAutoWatch(id: string, enabled: boolean): GamesOpResult {
+  try {
+    return saveGames(store.get().map((g) => (g.id === id ? { ...g, autoWatch: enabled } : g)))
+  } catch (err) {
+    return failGames('setAutoWatch', err)
+  }
+}
+
+export function setProfile(id: string, profile: GameProfileKey): GamesOpResult {
+  try {
+    return saveGames(store.get().map((g) => (g.id === id ? { ...g, profile } : g)))
+  } catch (err) {
+    return failGames('setProfile', err)
+  }
 }
 
 interface ProfileSpec {
@@ -75,20 +138,34 @@ async function findRunningPid(exeName: string): Promise<number | null> {
   return single?.Id ?? null
 }
 
-export async function applyProfileNow(id: string): Promise<{ ok: boolean; message: string }> {
-  const game = store.get().find((g) => g.id === id)
-  if (!game) return { ok: false, message: 'Juego no encontrado.' }
-  const pid = await findRunningPid(game.exeName)
-  if (!pid) return { ok: false, message: `${game.name} no esta corriendo ahora mismo.` }
+export async function applyProfileNow(id: string): Promise<{ ok: boolean; message: string; error?: string }> {
+  try {
+    const game = store.get().find((g) => g.id === id)
+    if (!game) return { ok: false, message: 'Juego no encontrado.' }
+    const pid = await findRunningPid(game.exeName)
+    if (!pid) return { ok: false, message: `${game.name} no esta corriendo ahora mismo.` }
 
-  const spec = PROFILES[game.profile]
-  const affinityMask = spec.useTopCores ? (await getCpuTopology()).pCoreMask : undefined
-  const result = await setProcessTuning(pid, { priority: spec.priority, affinityMask })
+    const spec = PROFILES[game.profile]
+    const affinityMask = spec.useTopCores ? (await getCpuTopology()).pCoreMask : undefined
+    const result = await setProcessTuning(pid, { priority: spec.priority, affinityMask })
 
-  const all = store.get().map((g) => (g.id === id ? { ...g, lastAppliedAt: Date.now() } : g))
-  store.set(all)
+    const all = store.get().map((g) => (g.id === id ? { ...g, lastAppliedAt: Date.now() } : g))
+    try {
+      store.set(all)
+    } catch (err) {
+      console.error(`[games] fallo al guardar lastAppliedAt de '${id}': ${String(err)}`)
+      return {
+        ok: false,
+        error: String(err),
+        message: `${game.name}: ${result.message} (no se pudo guardar el estado: ${String(err)})`
+      }
+    }
 
-  return { ok: result.ok, message: `${game.name}: ${result.message}` }
+    return { ok: result.ok, message: `${game.name}: ${result.message}` }
+  } catch (err) {
+    console.error(`[games] fallo al aplicar perfil '${id}': ${String(err)}`)
+    return { ok: false, error: String(err), message: `No se pudo aplicar el perfil. ${String(err)}` }
+  }
 }
 
 let watcherHandle: NodeJS.Timeout | null = null

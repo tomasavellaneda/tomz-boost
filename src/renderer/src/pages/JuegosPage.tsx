@@ -1,112 +1,113 @@
 import { useEffect, useState } from 'react'
 import Switch from '../components/Switch'
-import type { GameEntry, GameProfileKey, TweakDef } from '../../../shared/types'
-
-const PROFILE_LABELS: Record<GameProfileKey, string> = {
-  citizenPriv: 'Prioridad de Red',
-  citizenFps: 'Foco en FPS',
-  citizenClean: 'Config. Limpia'
-}
-
-const GAME_ICONS: Record<string, string> = {
-  gameMode: '🎮',
-  gaming: '🕹️',
-  gameDvrFse: '🖥️',
-  corePin: '📌',
-  autoCpuSet: '⚡'
-}
+import { useI18n } from '../lib/i18n'
+import type { GameEntry, GameProfileKey, GamesOpResult } from '../../../shared/types'
 
 export default function JuegosPage(): JSX.Element {
+  const { t } = useI18n()
   const [games, setGames] = useState<GameEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<string[]>([])
-  const [globalTweaks, setGlobalTweaks] = useState<TweakDef[]>([])
-  const [pendingTweak, setPendingTweak] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     load()
-    window.api.tweaks.list().then((list) => setGlobalTweaks(list.filter((t) => t.category === 'games')))
     const unsub = window.api.games.onNotification((msg) => setNotifications((prev) => [...prev.slice(-10), msg]))
     return unsub
   }, [])
 
-  async function toggleGlobalTweak(id: string, next: boolean): Promise<void> {
-    setPendingTweak(id)
-    const res = await window.api.tweaks.toggle(id, next)
-    setGlobalTweaks((prev) => prev.map((t) => (t.id === id ? { ...t, enabled: res.enabled } : t)))
-    setPendingTweak(null)
+  function applyList(res: GamesOpResult): void {
+    setGames(res.games)
+    if (!res.ok) setSaveError(res.message)
+    else setSaveError(null)
   }
 
   async function load(): Promise<void> {
     setLoading(true)
-    setGames(await window.api.games.list())
-    setLoading(false)
+    try {
+      applyList(await window.api.games.list())
+    } catch (err) {
+      setSaveError(String(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function addGame(): Promise<void> {
-    setGames(await window.api.games.add())
+    try {
+      applyList(await window.api.games.add())
+    } catch (err) {
+      setSaveError(String(err))
+    }
   }
 
   async function removeGame(id: string): Promise<void> {
-    setGames(await window.api.games.remove(id))
+    try {
+      applyList(await window.api.games.remove(id))
+    } catch (err) {
+      setSaveError(String(err))
+    }
   }
 
   async function setProfile(id: string, profile: GameProfileKey): Promise<void> {
-    setGames(await window.api.games.setProfile(id, profile))
+    try {
+      applyList(await window.api.games.setProfile(id, profile))
+    } catch (err) {
+      setSaveError(String(err))
+    }
   }
 
   async function toggleAuto(id: string, enabled: boolean): Promise<void> {
-    setGames(await window.api.games.setAutoWatch(id, enabled))
+    try {
+      applyList(await window.api.games.setAutoWatch(id, enabled))
+    } catch (err) {
+      setSaveError(String(err))
+    }
   }
 
   async function applyNow(id: string): Promise<void> {
     setBusyId(id)
-    const res = await window.api.games.applyNow(id)
-    setNotifications((prev) => [...prev.slice(-10), res.message])
-    setBusyId(null)
+    try {
+      const res = await window.api.games.applyNow(id)
+      setNotifications((prev) => [...prev.slice(-10), res.message])
+      if (!res.ok) setSaveError(res.message)
+      else setSaveError(null)
+    } catch (err) {
+      setSaveError(String(err))
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
     <>
-      <div className="grid-auto" style={{ marginBottom: 22 }}>
-        {globalTweaks.map((t) => (
-          <div className="tweak-card" key={t.id}>
-            <div className="top-row">
-              <div className="left">
-                <div className="ico-box">{GAME_ICONS[t.id] ?? '🎮'}</div>
-                <div>
-                  <b>{t.label}</b>
-                  <span className={`pill ${t.enabled ? '' : 'off'}`}>{t.enabled ? 'Activado' : 'Desactivado'}</span>
-                </div>
-              </div>
-              <Switch checked={t.enabled} disabled={pendingTweak === t.id} onChange={(v) => toggleGlobalTweak(t.id, v)} />
-            </div>
-            <p>{t.description}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="section-label">Tus juegos</div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         <button className="btn primary" onClick={addGame}>
-          + Agregar Juego
+          {t('games.add')}
         </button>
       </div>
 
+      {saveError && <div className="banner">{saveError}</div>}
+
       {loading ? (
-        <div className="empty-state">Cargando juegos…</div>
+        <div className="empty-state">{t('games.loading')}</div>
       ) : games.length === 0 ? (
-        <div className="empty-state">
-          Todavia no agregaste ningun juego. Usa "Agregar Juego" y elegi el .exe.
-        </div>
+        <div className="empty-state">{t('games.empty')}</div>
       ) : (
         <div className="list">
           {games.map((g) => (
             <div className="list-row" key={g.id}>
-              <div className="main">
-                <b>{g.name}</b>
-                <span>{g.exePath}</span>
+              <div className="game-identity">
+                {g.iconDataUrl ? (
+                  <img className="game-logo" src={g.iconDataUrl} alt="" draggable={false} />
+                ) : (
+                  <div className="game-logo fallback" />
+                )}
+                <div className="main">
+                  <b>{g.name}</b>
+                  <span>{g.exePath}</span>
+                </div>
               </div>
               <div className="actions">
                 <select
@@ -114,19 +115,17 @@ export default function JuegosPage(): JSX.Element {
                   value={g.profile}
                   onChange={(e) => setProfile(g.id, e.target.value as GameProfileKey)}
                 >
-                  {Object.entries(PROFILE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
+                  <option value="citizenPriv">{t('games.profile.net')}</option>
+                  <option value="citizenFps">{t('games.profile.fps')}</option>
+                  <option value="citizenClean">{t('games.profile.clean')}</option>
                 </select>
                 <button className="btn small" disabled={busyId === g.id} onClick={() => applyNow(g.id)}>
-                  {busyId === g.id ? 'Aplicando…' : 'Aplicar'}
+                  {busyId === g.id ? t('games.applying') : t('games.apply')}
                 </button>
-                <span style={{ fontSize: 10.5, color: 'var(--text-faint)' }}>Auto</span>
+                <span style={{ fontSize: 10.5, color: 'var(--text-faint)' }}>{t('games.auto')}</span>
                 <Switch checked={g.autoWatch} onChange={(v) => toggleAuto(g.id, v)} />
                 <button className="btn small danger" onClick={() => removeGame(g.id)}>
-                  Quitar
+                  {t('games.remove')}
                 </button>
               </div>
             </div>

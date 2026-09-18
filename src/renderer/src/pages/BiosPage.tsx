@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
+import LineIcon from '../components/LineIcon'
+import { useI18n } from '../lib/i18n'
 import type { BiosInfo } from '../../../shared/types'
 
 export default function BiosPage(): JSX.Element {
+  const { t } = useI18n()
   const [info, setInfo] = useState<BiosInfo | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [log, setLog] = useState<string[]>([])
@@ -27,9 +30,11 @@ export default function BiosPage(): JSX.Element {
       <div className="card">
         <div className="card-head">
           <div className="card-title">
-            <div className="ico-box">🧩</div>
+            <div className="ico-box">
+              <LineIcon name="cpu" size={16} />
+            </div>
             <div>
-              <b>CPU / Placa Base</b>
+              <b>{t('bios.board')}</b>
             </div>
           </div>
         </div>
@@ -39,29 +44,29 @@ export default function BiosPage(): JSX.Element {
               CPU <b>{info.cpuModel}</b>
             </div>
             <div className="row">
-              Nucleos/Hilos{' '}
+              {t('bios.coresThreads')}{' '}
               <b>
                 {info.cpuCores} Cores / {info.cpuThreads} Threads
               </b>
             </div>
             <div className="row">
-              Placa Madre <b>{info.boardVendor}</b>
+              {t('bios.motherboard')} <b>{info.boardVendor}</b>
             </div>
             <div className="row">
-              Modelo <b>{info.boardModel}</b>
+              {t('bios.model')} <b>{info.boardModel}</b>
             </div>
             <div className="row">
-              Vendor BIOS <b>{info.vendor}</b>
+              {t('bios.vendor')} <b>{info.vendor}</b>
             </div>
             <div className="row">
-              Version <b>{info.version}</b>
+              {t('bios.version')} <b>{info.version}</b>
             </div>
             <div className="row">
-              Fecha <b>{info.releaseDate}</b>
+              {t('bios.date')} <b>{info.releaseDate}</b>
             </div>
           </div>
         ) : (
-          <div className="empty-state">Leyendo informacion via WMI…</div>
+          <div className="empty-state">{t('bios.reading')}</div>
         )}
 
         {log.length > 0 && <div className="log-box" style={{ marginTop: 14 }}>{log.join('\n')}</div>}
@@ -70,57 +75,61 @@ export default function BiosPage(): JSX.Element {
       <div className="card">
         <div className="card-head">
           <div className="card-title">
-            <div className="ico-box">⇩</div>
+            <div className="ico-box">
+              <LineIcon name="download" size={16} />
+            </div>
             <div>
-              <b>Exportar</b>
+              <b>{t('bios.export')}</b>
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
           <button className="btn primary full" disabled={busy === 'export'} onClick={() => run('export', () => window.api.bios.export())}>
-            Exportar
+            {t('bios.export')}
           </button>
           <button className="btn full" onClick={() => window.api.sysinfo.bios().then(setInfo)}>
-            Ver Config
+            {t('bios.view')}
           </button>
           <button className="btn full" onClick={() => window.api.bios.openFolder()}>
-            Abrir Carpeta
+            {t('bios.openFolder')}
           </button>
         </div>
 
         <div className="card-head">
           <div className="card-title">
-            <div className="ico-box">⇧</div>
+            <div className="ico-box">
+              <LineIcon name="upload" size={16} />
+            </div>
             <div>
-              <b>Aplicar</b>
+              <b>{t('bios.apply')}</b>
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button className="btn full" disabled={busy === 'auto'} onClick={() => run('auto', () => window.api.bios.autoConfig())}>
-            {busy === 'auto' ? 'Aplicando…' : 'Auto Config'}
+            {busy === 'auto' ? t('bios.applying') : t('bios.auto')}
           </button>
           <button className="btn full" disabled={busy === 'import'} onClick={() => run('import', () => window.api.bios.import())}>
-            Importar
+            {t('bios.import')}
           </button>
 
           {!confirmFirmware ? (
             <button className="btn danger full" onClick={() => setConfirmFirmware(true)}>
-              Entrar BIOS
+              {t('bios.enter')}
             </button>
           ) : (
             <div className="banner danger">
-              El equipo se reiniciara ahora mismo directo al firmware UEFI. Guarda tu trabajo antes de continuar.
+              {t('bios.warn')}
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                 <button
                   className="btn danger"
                   disabled={busy === 'firmware'}
                   onClick={() => run('firmware', () => window.api.bios.enterFirmware())}
                 >
-                  Confirmar y reiniciar
+                  {t('bios.confirm')}
                 </button>
                 <button className="btn" onClick={() => setConfirmFirmware(false)}>
-                  Cancelar
+                  {t('bios.cancel')}
                 </button>
               </div>
             </div>

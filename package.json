@@ -1,9 +1,10 @@
 {
   "name": "tomz-boost",
-  "version": "0.1.0",
+  "productName": "Tomz Boost",
+  "version": "1.0.0",
   "private": true,
   "description": "Utilidad de sistema y optimizacion para Windows (monitoreo real + tweaks reales).",
-  "author": "",
+  "author": "Tomz Boost",
   "license": "UNLICENSED",
   "main": "out/main/index.js",
   "type": "commonjs",
@@ -13,19 +14,51 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
-    "dist": "electron-vite build && electron-builder --win"
+    "dist": "electron-vite build && electron-builder --win",
+    "key:new": "node scripts/generate-key.cjs",
+    "bot": "node scripts/discord-key-bot.cjs",
+    "icon": "node scripts/generate-icon.cjs",
+    "test:nvidia-profile-migration": "node scripts/test-nvidia-profile-migration.cjs",
+    "test:registry-toggle-backup": "node scripts/test-registry-toggle-backup.cjs",
+    "test:retire-legacy-tweaks": "node scripts/test-retire-legacy-tweaks.cjs",
+    "test:service-starttype-parse": "node scripts/test-service-starttype-parse.cjs",
+    "test:cold-boot-reg-reads": "node scripts/test-cold-boot-reg-reads.cjs"
+  },
+  "build": {
+    "appId": "com.tomzboost.app",
+    "productName": "Tomz Boost",
+    "copyright": "Copyright © Tomz Boost",
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "executableName": "Tomz Boost"
+    },
+    "nsis": {
+      "shortcutName": "Tomz Boost",
+      "uninstallDisplayName": "Tomz Boost"
+    }
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "discord-rpc": "^4.0.1",
+    "qrcode": "^1.5.4",
     "systeminformation": "^5.23.5"
   },
   "devDependencies": {
+    "@types/discord-rpc": "^4.0.11",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "discord.js": "^14.27.0",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
+    "esbuild": "^0.21.5",
+    "png-to-ico": "^3.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.2",

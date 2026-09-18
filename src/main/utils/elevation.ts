@@ -1,13 +1,39 @@
 import { app } from 'electron'
 import { spawn } from 'child_process'
 import { runPowerShell } from './shell'
+import type { TweakResult } from '../../shared/types'
+
+export const ADMIN_REQUIRED_MESSAGE = 'Este cambio requiere ejecutar la app como administrador'
+
+let cachedElevated: boolean | null = null
 
 export async function isElevated(): Promise<boolean> {
-  if (process.platform !== 'win32') return true
+  if (cachedElevated !== null) return cachedElevated
+  if (process.platform !== 'win32') {
+    cachedElevated = true
+    return true
+  }
   const res = await runPowerShell(
     "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"
   )
-  return res.stdout.trim().toLowerCase() === 'true'
+  cachedElevated = res.ok && res.stdout.trim().toLowerCase() === 'true'
+  return cachedElevated
+}
+
+/**
+ * Si el proceso no esta elevado, devuelve un TweakResult listo para
+ * devolverle al usuario. Si esta elevado, devuelve null y el llamador sigue.
+ * El token de elevacion no cambia sin relanzar la app, asi que isElevated
+ * se cachea por proceso.
+ */
+export async function requireElevated(): Promise<TweakResult | null> {
+  if (await isElevated()) return null
+  return {
+    ok: false,
+    verified: false,
+    error: ADMIN_REQUIRED_MESSAGE,
+    message: ADMIN_REQUIRED_MESSAGE
+  }
 }
 
 /** Relanza la app actual con privilegios de administrador (UAC) y cierra esta instancia. */

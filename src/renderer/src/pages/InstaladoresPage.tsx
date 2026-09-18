@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
+import Icon from '../components/Icon'
+import LineIcon from '../components/LineIcon'
+import { APP_ICON } from '../lib/icons'
+import { useI18n } from '../lib/i18n'
 import type { InstallerApp } from '../../../shared/types'
 
 export default function InstaladoresPage(): JSX.Element {
+  const { t } = useI18n()
   const [wingetOk, setWingetOk] = useState<boolean | null>(null)
   const [apps, setApps] = useState<InstallerApp[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,7 +31,7 @@ export default function InstaladoresPage(): JSX.Element {
 
   async function install(app: InstallerApp): Promise<void> {
     setInstallingId(app.id)
-    setLogLines([`Instalando ${app.name}…`])
+    setLogLines([t('install.installingName', { name: app.name })])
     await window.api.installers.install(app.wingetId)
     setInstallingId(null)
     load()
@@ -36,23 +41,30 @@ export default function InstaladoresPage(): JSX.Element {
     <>
       {wingetOk === false && (
         <div className="banner danger">
-          No se detecto <b>winget</b> (App Installer) en este equipo. Instalalo desde la Microsoft Store para poder
-          usar esta seccion.
+          {t('install.noWinget')}
         </div>
       )}
 
       {loading ? (
-        <div className="empty-state">Consultando catalogo…</div>
+        <div className="empty-state">{t('install.loading')}</div>
       ) : (
-        <div className="grid-auto">
+        <div className="grid-auto installer-grid">
           {apps.map((app) => (
             <div className="tweak-card" key={app.id}>
               <div className="top-row">
                 <div className="left">
-                  <div className="ico-box">📦</div>
+                  <div className="ico-box">
+                    {APP_ICON[app.id] ? (
+                      <Icon src={APP_ICON[app.id]} alt={app.name} size={22} />
+                    ) : (
+                      <LineIcon name="package" size={18} />
+                    )}
+                  </div>
                   <div>
                     <b>{app.name}</b>
-                    <span className={`pill ${app.installed ? '' : 'off'}`}>{app.installed ? 'Instalado' : 'No instalado'}</span>
+                    <span className={`pill ${app.installed ? '' : 'off'}`}>
+                      {app.installed ? t('install.installed') : t('install.notInstalled')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -62,7 +74,7 @@ export default function InstaladoresPage(): JSX.Element {
                 disabled={app.installed || installingId === app.id}
                 onClick={() => install(app)}
               >
-                {installingId === app.id ? 'Instalando…' : app.installed ? 'Ya instalado' : 'Instalar'}
+                {installingId === app.id ? t('install.installing') : app.installed ? t('install.already') : t('install.install')}
               </button>
             </div>
           ))}

@@ -1,7 +1,27 @@
+# dependencias
 node_modules/
+
+# electron-vite (compilado)
 out/
+
+# electron-builder (instalador / .exe)
 dist/
 release/
+
+# secretos y estado local
+.env
+.env.local
+.env.*.local
+license.json
+scripts/data/payments.json
+
+# logs y cache
 *.log
+logs/
+.cache/
+.vite/
+*.tsbuildinfo
+
+# sistema
 .DS_Store
 Thumbs.db

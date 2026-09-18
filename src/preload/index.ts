@@ -4,17 +4,21 @@ import type {
   BiosInfo,
   TweakDef,
   TweakToggleResult,
+  RecommendedTweaksResult,
   DebloatItem,
+  DebloatBackupEntry,
   DriverInfo,
   ProcessInfo,
   CpuTopology,
-  GameEntry,
+  GamesOpResult,
   InstallerApp,
-  InstallerProgressEvent
+  InstallerProgressEvent,
+  DiscordProfile
 } from '../shared/types'
 
 const api = {
   window: {
+    painted: () => ipcRenderer.send('boot:painted'),
     minimize: () => ipcRenderer.invoke('window:minimize'),
     maximize: () => ipcRenderer.invoke('window:maximize'),
     close: () => ipcRenderer.invoke('window:close')
@@ -30,17 +34,25 @@ const api = {
     }
   },
   tweaks: {
-    list: (): Promise<TweakDef[]> => ipcRenderer.invoke('tweaks:list'),
+    list: (): Promise<{ tweaks: TweakDef[]; ready: boolean }> => ipcRenderer.invoke('tweaks:list'),
     toggle: (id: string, enabled: boolean): Promise<TweakToggleResult> =>
       ipcRenderer.invoke('tweaks:toggle', id, enabled),
+    applyRecommended: (): Promise<RecommendedTweaksResult> => ipcRenderer.invoke('tweaks:applyRecommended'),
     getWin32Priority: (): Promise<string | null> => ipcRenderer.invoke('tweaks:win32PriorityGet'),
     setWin32Priority: (preset: string): Promise<{ ok: boolean; message: string }> =>
-      ipcRenderer.invoke('tweaks:win32PrioritySet', preset)
+      ipcRenderer.invoke('tweaks:win32PrioritySet', preset),
+    resetWin32Priority: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('tweaks:win32PriorityReset'),
+    onUpdate: (cb: (tweaks: TweakDef[]) => void) => {
+      const listener = (_: unknown, data: TweakDef[]): void => cb(data)
+      ipcRenderer.on('tweaks:update', listener)
+      return () => ipcRenderer.removeListener('tweaks:update', listener)
+    }
   },
   debloat: {
     list: (): Promise<DebloatItem[]> => ipcRenderer.invoke('debloat:list'),
     remove: (packageNames: string[]): Promise<{ ok: boolean; log: string[] }> =>
-      ipcRenderer.invoke('debloat:remove', packageNames)
+      ipcRenderer.invoke('debloat:remove', packageNames),
+    listRemoved: (): Promise<DebloatBackupEntry[]> => ipcRenderer.invoke('debloat:listRemoved')
   },
   drivers: {
     list: (): Promise<DriverInfo[]> => ipcRenderer.invoke('drivers:list')
@@ -61,14 +73,15 @@ const api = {
       ipcRenderer.invoke('affinity:autoRun')
   },
   games: {
-    list: (): Promise<GameEntry[]> => ipcRenderer.invoke('games:list'),
-    add: (): Promise<GameEntry[]> => ipcRenderer.invoke('games:add'),
-    remove: (id: string): Promise<GameEntry[]> => ipcRenderer.invoke('games:remove', id),
-    setAutoWatch: (id: string, enabled: boolean): Promise<GameEntry[]> =>
+    list: (): Promise<GamesOpResult> => ipcRenderer.invoke('games:list'),
+    add: (): Promise<GamesOpResult> => ipcRenderer.invoke('games:add'),
+    remove: (id: string): Promise<GamesOpResult> => ipcRenderer.invoke('games:remove', id),
+    setAutoWatch: (id: string, enabled: boolean): Promise<GamesOpResult> =>
       ipcRenderer.invoke('games:setAutoWatch', id, enabled),
-    setProfile: (id: string, profile: string): Promise<GameEntry[]> =>
+    setProfile: (id: string, profile: string): Promise<GamesOpResult> =>
       ipcRenderer.invoke('games:setProfile', id, profile),
-    applyNow: (id: string): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('games:applyNow', id),
+    applyNow: (id: string): Promise<{ ok: boolean; message: string; error?: string }> =>
+      ipcRenderer.invoke('games:applyNow', id),
     onNotification: (cb: (message: string) => void) => {
       const listener = (_: unknown, message: string): void => cb(message)
       ipcRenderer.on('games:notification', listener)
@@ -86,12 +99,29 @@ const api = {
       return () => ipcRenderer.removeListener('installers:progress', listener)
     }
   },
+  license: {
+    status: (): Promise<{ ok: boolean; key: string | null; hwid: string | null }> =>
+      ipcRenderer.invoke('license:status'),
+    activate: (key: string): Promise<{ ok: boolean; message: string }> =>
+      ipcRenderer.invoke('license:activate', key)
+  },
+  discord: {
+    setPage: (page: string): Promise<void> => ipcRenderer.invoke('discord:setPage', page),
+    setLang: (lang: string): Promise<void> => ipcRenderer.invoke('discord:setLang', lang),
+    profile: (): Promise<DiscordProfile | null> => ipcRenderer.invoke('discord:profile'),
+    onProfile: (cb: (profile: DiscordProfile | null) => void) => {
+      const listener = (_: unknown, data: DiscordProfile | null): void => cb(data)
+      ipcRenderer.on('discord:profile', listener)
+      return () => ipcRenderer.removeListener('discord:profile', listener)
+    }
+  },
   system: {
     runCleanup: (): Promise<{ ok: boolean; freedMB: number; message: string }> =>
       ipcRenderer.invoke('system:runCleanup'),
     scanDisk: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('system:scanDisk'),
     optimizeDrive: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('system:optimizeDrive'),
     isElevated: (): Promise<boolean> => ipcRenderer.invoke('system:isElevated'),
+    version: (): Promise<string> => ipcRenderer.invoke('system:version'),
     relaunchAsAdmin: (): Promise<void> => ipcRenderer.invoke('system:relaunchAsAdmin'),
     openExternal: (url: string): Promise<void> => ipcRenderer.invoke('system:openExternal', url),
     openPath: (path: string): Promise<void> => ipcRenderer.invoke('system:openPath', path)

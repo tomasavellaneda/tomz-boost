@@ -78,8 +78,13 @@ export function runCmd(command: string, args: string[], timeoutMs = 15000): Prom
       }
     }, timeoutMs)
 
-    child.stdout?.on('data', (d) => (stdout += d.toString()))
-    child.stderr?.on('data', (d) => (stderr += d.toString()))
+    // powercfg/reg/netsh escriben ANSI (CP1252 en ES) al pipe, no UTF-8.
+    // toString() por defecto asume UTF-8 y convierte "Parámetros" en "Par´┐¢metros".
+    // latin1 mapea 1:1 los bytes 0x80-0xFF; cubre tildes/ñ de 1252 sin dependencia.
+    // PowerShell (runPowerShell) se deja en UTF-8: su JSON puede ir multibyte.
+    const decode = (d: Buffer | string): string => (Buffer.isBuffer(d) ? d.toString('latin1') : d)
+    child.stdout?.on('data', (d) => (stdout += decode(d)))
+    child.stderr?.on('data', (d) => (stderr += decode(d)))
     child.on('close', (code) => {
       if (settled) return
       settled = true

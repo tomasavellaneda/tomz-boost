@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import type { NavItem } from '../lib/nav'
+import { useI18n } from '../lib/i18n'
+import LanguageSwitcher from './LanguageSwitcher'
 
 interface TopbarProps {
   navItem: NavItem
 }
 
 export default function Topbar({ navItem }: TopbarProps): JSX.Element {
+  const { t } = useI18n()
   const [running, setRunning] = useState(false)
   const [lastMessage, setLastMessage] = useState<string | null>(null)
 
@@ -22,18 +25,14 @@ export default function Topbar({ navItem }: TopbarProps): JSX.Element {
 
   return (
     <div className="topbar">
-      <div>
-        <div className="breadcrumb">
-          <span>⌂</span>
-          <span>›</span>
-          <span>{navItem.label}</span>
-        </div>
-        <h1>{navItem.title}</h1>
-        <div className="subtitle">{lastMessage ?? navItem.subtitle}</div>
+      <div className="topbar-copy" key={navItem.key}>
+        <h1>{t(`title.${navItem.key}`)}</h1>
+        <div className="subtitle">{lastMessage ?? t(`sub.${navItem.key}`)}</div>
       </div>
       <div className="topbar-actions">
+        <LanguageSwitcher />
         <button className="btn primary" onClick={handleCleanup} disabled={running}>
-          {running ? 'Limpiando…' : 'Ejecutar limpieza'}
+          {running ? t('top.cleaning') : t('top.cleanup')}
         </button>
       </div>
     </div>

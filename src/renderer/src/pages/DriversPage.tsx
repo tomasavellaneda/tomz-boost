@@ -25,6 +25,7 @@ export default function DriversPage(): JSX.Element {
       {loading ? (
         <div className="empty-state">Leyendo controladores instalados…</div>
       ) : (
+        <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
@@ -49,6 +50,7 @@ export default function DriversPage(): JSX.Element {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </>
   )

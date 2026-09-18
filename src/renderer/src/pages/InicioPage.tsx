@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import Gauge from '../components/Gauge'
 import LineChart from '../components/LineChart'
+import Icon from '../components/Icon'
+import { BRAND, brandFromText } from '../lib/icons'
+import { useI18n } from '../lib/i18n'
 import { useSysInfo } from '../lib/useSysInfo'
 
 type Metric = 'temp' | 'cpu' | 'gpu' | 'ram'
@@ -9,6 +12,7 @@ type Range = '1min' | '5min' | '15min' | '1h'
 const RANGE_POINTS: Record<Range, number> = { '1min': 40, '5min': 60, '15min': 60, '1h': 60 }
 
 export default function InicioPage(): JSX.Element {
+  const { t } = useI18n()
   const { snapshot, history } = useSysInfo()
   const [metric, setMetric] = useState<Metric>('temp')
   const [range, setRange] = useState<Range>('1min')
@@ -19,7 +23,7 @@ export default function InicioPage(): JSX.Element {
     return (
       <div className="loading-screen" style={{ height: 'auto', padding: 60 }}>
         <div className="spinner" />
-        Leyendo sensores del sistema…
+        {t('inicio.loading')}
       </div>
     )
   }
@@ -28,6 +32,9 @@ export default function InicioPage(): JSX.Element {
   const sliced = history.slice(-RANGE_POINTS[range])
   const series = sliced.map((p) => p[metric])
   const latest = series[series.length - 1] ?? 0
+  const ramPercent = snapshot.ram.totalGB > 0 ? (snapshot.ram.usedGB / snapshot.ram.totalGB) * 100 : 0
+  const gpuBrand = brandFromText(`${snapshot.gpu.vendor} ${snapshot.gpu.model}`)
+  const cpuBrand = brandFromText(`${snapshot.cpu.manufacturer} ${snapshot.cpu.brand}`)
 
   async function runAction(key: string, fn: () => Promise<{ message: string }>): Promise<void> {
     setBusyAction(key)
@@ -42,198 +49,213 @@ export default function InicioPage(): JSX.Element {
 
   return (
     <>
-      <div className="grid-3">
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title">
-              <div className="ico-box">🧠</div>
-              <div>
-                <b>CPU</b>
-                <small>PROCESADOR</small>
-              </div>
-            </div>
-            <button className="btn small">Detalles</button>
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <div className="setting-row">
+          <div className="meta">
+            <b>{t('inicio.live')}</b>
+            <span>
+              {snapshot.cpu.brand} · {snapshot.gpu.model || snapshot.gpu.vendor}
+            </span>
           </div>
-          <div className="gauge-row">
-            <Gauge value={snapshot.cpu.loadPercent} color="var(--accent)" />
-            <div className="stat-lines">
-              <div className="row">
-                FRECUENCIA <b>{snapshot.cpu.speedGHz} GHz</b>
-              </div>
-              <div className="row">
-                NUCLEOS{' '}
-                <b>
-                  {snapshot.cpu.physicalCores}/{snapshot.cpu.cores}
-                </b>
-              </div>
-              <div className="row">
-                TEMPERATURA <b>{snapshot.cpu.temperatureC ?? 'N/D'}{snapshot.cpu.temperatureC !== null ? '°C' : ''}</b>
-              </div>
+          <div className="control">
+            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{snapshot.os.distro}</span>
+          </div>
+        </div>
+        <div className="amd-gauges">
+          <Gauge title={t('inicio.cpuUsage')} value={snapshot.cpu.loadPercent} />
+          <Gauge
+            title={t('inicio.gpuUsage')}
+            value={snapshot.gpu.loadPercent ?? 0}
+            label={snapshot.gpu.loadPercent === null ? 'N/D' : undefined}
+          />
+          <Gauge title={t('inicio.ramUsage')} value={ramPercent} />
+          <Gauge title={t('inicio.disk')} value={disk?.usedPercent ?? 0} label={disk ? undefined : 'N/D'} />
+          <Gauge
+            title={t('inicio.cpuTemp')}
+            value={snapshot.cpu.temperatureC ?? 0}
+            max={100}
+            label={snapshot.cpu.temperatureC === null ? 'N/D' : `${Math.round(snapshot.cpu.temperatureC)}°C`}
+          />
+          <Gauge
+            title={t('inicio.gpuTemp')}
+            value={snapshot.gpu.temperatureC ?? 0}
+            max={100}
+            label={snapshot.gpu.temperatureC === null ? 'N/D' : `${Math.round(snapshot.gpu.temperatureC)}°C`}
+          />
+        </div>
+      </div>
+
+      <div className="amd-cols" style={{ marginBottom: 12 }}>
+        <div className="panel">
+          <div className="panel-head">
+            <b>{t('inicio.system')}</b>
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{snapshot.os.release}</span>
+          </div>
+          <div className="setting-row">
+            <div className="meta">
+              <b>{t('inicio.machine')}</b>
+              <span>{snapshot.os.hostname}</span>
+            </div>
+            <div className="control">
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{snapshot.os.arch}</span>
+            </div>
+          </div>
+          <div className="setting-row">
+            <div className="meta">
+              <b>{t('inicio.processor')}</b>
+              <span>
+                {t('inicio.coresThreads', { cores: snapshot.cpu.physicalCores, threads: snapshot.cpu.cores })}
+              </span>
+            </div>
+            <div className="control">
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{snapshot.cpu.speedGHz} GHz</span>
+            </div>
+          </div>
+          <div className="setting-row">
+            <div className="meta">
+              <b>{t('inicio.network')}</b>
+              <span>
+                {snapshot.network.interfaceName || t('inicio.noInterface')} · DNS {snapshot.network.dns || 'N/D'}
+              </span>
+            </div>
+            <div className="control">
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                {snapshot.network.latencyMs !== null ? `${snapshot.network.latencyMs} ms` : 'N/D'}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title">
-              <div className="ico-box">🖥️</div>
-              <div>
-                <b>GPU</b>
-                <small>GRAFICOS</small>
+        <div className="panel">
+          <div className="panel-head">
+            <b>{t('inicio.hardware')}</b>
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('inicio.details')}</span>
+          </div>
+          <div className="hw-grid">
+            <div className="hw-cell">
+              <div className="label">
+                {gpuBrand && <Icon src={BRAND[gpuBrand]} alt={gpuBrand} size={16} />}
+                GPU
+              </div>
+              <div className="value">{snapshot.gpu.model || 'N/D'}</div>
+              <div className="sub">{snapshot.gpu.clockMHz ? `${snapshot.gpu.clockMHz} MHz` : snapshot.gpu.vendor}</div>
+            </div>
+            <div className="hw-cell">
+              <div className="label">VRAM</div>
+              <div className="value">
+                {Math.round(snapshot.gpu.vramUsedMB)} / {Math.round(snapshot.gpu.vramTotalMB)} MB
+              </div>
+              <div className="sub">
+                {snapshot.gpu.vramTotalMB ? t('inicio.vramTotal', { gb: (snapshot.gpu.vramTotalMB / 1024).toFixed(1) }) : ''}
               </div>
             </div>
-            <button className="btn small">Detalles</button>
-          </div>
-          <div className="gauge-row">
-            <Gauge value={snapshot.gpu.loadPercent ?? 0} color="var(--accent-2)" label={snapshot.gpu.loadPercent === null ? 'N/D' : undefined} />
-            <div className="stat-lines">
-              <div className="row">
-                FRECUENCIA <b>{snapshot.gpu.clockMHz ? `${snapshot.gpu.clockMHz} MHz` : 'N/D'}</b>
+            <div className="hw-cell">
+              <div className="label">
+                {cpuBrand && <Icon src={BRAND[cpuBrand]} alt={cpuBrand} size={16} />}
+                CPU
               </div>
-              <div className="row">
-                VRAM{' '}
-                <b>
-                  {Math.round(snapshot.gpu.vramUsedMB / 1024)}/{Math.round(snapshot.gpu.vramTotalMB / 1024)} GB
-                </b>
-              </div>
-              <div className="row">
-                TEMPERATURA <b>{snapshot.gpu.temperatureC ?? 'N/D'}{snapshot.gpu.temperatureC !== null ? '°C' : ''}</b>
+              <div className="value">{snapshot.cpu.brand}</div>
+              <div className="sub">
+                {t('inicio.cpuSub', { cores: snapshot.cpu.physicalCores, ghz: snapshot.cpu.speedGHz })}
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title">
-              <div className="ico-box">▤</div>
-              <div>
-                <b>RAM</b>
-                <small>MEMORIA</small>
-              </div>
-            </div>
-            <button className="btn small">Detalles</button>
-          </div>
-          <div className="gauge-row">
-            <Gauge
-              value={snapshot.ram.usedGB}
-              max={snapshot.ram.totalGB}
-              color="#c76bff"
-              label={`${Math.round((snapshot.ram.usedGB / snapshot.ram.totalGB) * 100)}%`}
-            />
-            <div className="stat-lines">
-              <div className="row">
-                USADO{' '}
-                <b>
-                  {snapshot.ram.usedGB}/{snapshot.ram.totalGB} GB
-                </b>
-              </div>
-              <div className="row">
-                VELOCIDAD <b>{snapshot.ram.speedMHz ? `${snapshot.ram.speedMHz} MHz` : 'N/D'}</b>
-              </div>
-              <div className="row">
-                LATENCIA <b>N/D</b>
+            <div className="hw-cell">
+              <div className="label">RAM</div>
+              <div className="value">{snapshot.ram.totalGB} GB</div>
+              <div className="sub">
+                {t('inicio.ramUsed', { used: snapshot.ram.usedGB })}
+                {snapshot.ram.speedMHz ? ` · ${snapshot.ram.speedMHz} MHz` : ''}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid-2">
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title">
-              <div className="ico-box">📈</div>
-              <div>
-                <b>Monitor de Rendimiento</b>
+      <div className="amd-cols">
+        <div className="panel">
+          <div className="panel-head">
+            <b>{t('inicio.monitor')}</b>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>
+              {metric === 'temp' ? `${Math.round(latest)}°C` : `${Math.round(latest)}%`}
+            </span>
+          </div>
+          <div className="card-body">
+            <div className="toolbar-row">
+              <div className="tabs">
+                {(['temp', 'cpu', 'gpu', 'ram'] as Metric[]).map((m) => (
+                  <div key={m} className={`tab ${metric === m ? 'active' : ''}`} onClick={() => setMetric(m)}>
+                    {m === 'temp' ? t('inicio.temp') : m.toUpperCase()}
+                  </div>
+                ))}
+              </div>
+              <div className="tabs right">
+                {(['1min', '5min', '15min', '1h'] as Range[]).map((r) => (
+                  <div key={r} className={`tab ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>
+                    {r === '1min' ? '1 min' : r === '5min' ? '5 min' : r === '15min' ? '15 min' : '1 h'}
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div className="tabs">
-              {(['temp', 'cpu', 'gpu', 'ram'] as Metric[]).map((m) => (
-                <div key={m} className={`tab ${metric === m ? 'active' : ''}`} onClick={() => setMetric(m)}>
-                  {m === 'temp' ? 'Temp' : m.toUpperCase()}
-                </div>
-              ))}
-            </div>
-            <div className="tabs">
-              {(['1min', '5min', '15min', '1h'] as Range[]).map((r) => (
-                <div key={r} className={`tab ${range === r ? 'active' : ''}`} onClick={() => setRange(r)}>
-                  {r === '1min' ? '1 min' : r === '5min' ? '5 min' : r === '15min' ? '15 min' : '1 h'}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <LineChart data={series} max={metric === 'temp' ? 100 : 100} />
-            <div
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                background: 'var(--panel-strong)',
-                borderRadius: 8,
-                padding: '4px 10px',
-                fontSize: 11,
-                fontWeight: 700
-              }}
-            >
-              {metric === 'temp' ? `${Math.round(latest)}°C` : `${Math.round(latest)}%`}
-            </div>
+            <LineChart data={series} max={100} />
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title">
-              <div className="ico-box">💽</div>
-              <div>
-                <b>Almacenamiento</b>
-              </div>
-            </div>
-            <button className="btn small">Detalles</button>
+        <div className="panel">
+          <div className="panel-head">
+            <b>{t('inicio.storage')}</b>
+            {disk && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('inicio.localDisk', { mount: disk.mount })}</span>}
           </div>
           {disk ? (
             <>
-              <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 8 }}>Disco Local ({disk.mount})</div>
-              <div className="gauge-row" style={{ marginBottom: 14 }}>
-                <Gauge value={disk.usedPercent} size={90} color="var(--accent)" />
-                <div className="stat-lines">
-                  <div className="row">
-                    USADO <b>{disk.usedGB} GB</b>
-                  </div>
-                  <div className="row">
-                    LIBRE <b>{disk.freeGB} GB</b>
-                  </div>
-                  <div className="row">
-                    TOTAL <b>{disk.totalGB} GB</b>
-                  </div>
+              <div className="setting-row">
+                <div className="meta">
+                  <b>{t('inicio.used')}</b>
+                  <span>{t('inicio.occupied', { pct: disk.usedPercent })}</span>
+                </div>
+                <div className="control">
+                  <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{disk.usedGB} GB</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <div className="setting-row">
+                <div className="meta">
+                  <b>{t('inicio.free')}</b>
+                  <span>{t('inicio.totalGb', { gb: disk.totalGB })}</span>
+                </div>
+                <div className="control">
+                  <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{disk.freeGB} GB</span>
+                </div>
+              </div>
+              <div className="card-body" style={{ display: 'flex', gap: 8 }}>
                 <button
-                  className="btn small full"
+                  className="btn small ghost full"
                   disabled={busyAction === 'scan'}
                   onClick={() => runAction('scan', () => window.api.system.scanDisk())}
                 >
-                  Escanear
+                  {t('inicio.scan')}
                 </button>
                 <button
-                  className="btn small full"
+                  className="btn small ghost full"
                   disabled={busyAction === 'optimize'}
                   onClick={() => runAction('optimize', () => window.api.system.optimizeDrive())}
                 >
-                  Optimizar
+                  {t('inicio.optimize')}
+                </button>
+                <button className="btn small ghost full" onClick={() => window.api.system.openPath(disk.mount)}>
+                  {t('inicio.manage')}
                 </button>
               </div>
-              <button className="btn full" onClick={() => window.api.system.openPath(disk.mount)}>
-                Administrar Almacenamiento
-              </button>
-              {actionMessage && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>{actionMessage}</div>}
+              {actionMessage && (
+                <div className="setting-row">
+                  <div className="meta">
+                    <span>{actionMessage}</span>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
-            <div className="empty-state">No se detectaron discos.</div>
+            <div className="empty-state" style={{ border: 'none' }}>
+              {t('inicio.noDisks')}
+            </div>
           )}
         </div>
       </div>

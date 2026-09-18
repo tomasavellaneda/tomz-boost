@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react'
+import LineIcon from '../components/LineIcon'
+import { useI18n } from '../lib/i18n'
 import { useSysInfo } from '../lib/useSysInfo'
 import type { CpuTopology, ProcessInfo } from '../../../shared/types'
 
-const PRIORITIES = ['Baja', 'Por debajo de lo normal', 'Normal', 'Por encima de lo normal', 'Alta', 'Tiempo real']
+const PRIORITIES: { value: string; key: string }[] = [
+  { value: 'Baja', key: 'aff.prio.idle' },
+  { value: 'Por debajo de lo normal', key: 'aff.prio.below' },
+  { value: 'Normal', key: 'aff.prio.normal' },
+  { value: 'Por encima de lo normal', key: 'aff.prio.above' },
+  { value: 'Alta', key: 'aff.prio.high' },
+  { value: 'Tiempo real', key: 'aff.prio.realtime' }
+]
 
 export default function ToolsPage(): JSX.Element {
+  const { t } = useI18n()
   const { snapshot } = useSysInfo()
   const [topology, setTopology] = useState<CpuTopology | null>(null)
   const [processes, setProcesses] = useState<ProcessInfo[]>([])
@@ -53,71 +63,78 @@ export default function ToolsPage(): JSX.Element {
       <div className="grid-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <div className="card">
           <div className="card-title">
-            <div className="ico-box">🧠</div>
+            <div className="ico-box">
+              <LineIcon name="cpu" size={16} />
+            </div>
             <div>
               <b>CPU</b>
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 10 }}>{snapshot?.cpu.loadPercent ?? 0}%</div>
-          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>usage</div>
+          <div className="metric">{snapshot?.cpu.loadPercent ?? 0}%</div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('aff.usage')}</div>
         </div>
         <div className="card">
           <div className="card-title">
-            <div className="ico-box">🧵</div>
+            <div className="ico-box">
+              <LineIcon name="threads" size={16} />
+            </div>
             <div>
               <b>Threads</b>
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 10 }}>{topology?.logicalCores ?? '—'}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>active</div>
+          <div className="metric">{topology?.logicalCores ?? '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('aff.active')}</div>
         </div>
         <div className="card">
           <div className="card-title">
-            <div className="ico-box">⏱️</div>
+            <div className="ico-box">
+              <LineIcon name="clock" size={16} />
+            </div>
             <div>
               <b>GHz</b>
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 10 }}>{topology?.ghz ?? '—'}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>frecuencia</div>
+          <div className="metric">{topology?.ghz ?? '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('aff.frequency')}</div>
         </div>
         <div className="card">
           <div className="card-title">
-            <div className="ico-box">🎮</div>
+            <div className="ico-box">
+              <LineIcon name="gpu" size={16} />
+            </div>
             <div>
               <b>GPU</b>
             </div>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, marginTop: 10 }}>{topology?.gpuCores ?? 0}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>cores</div>
+          <div className="metric">{topology?.gpuCores ?? 0}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('aff.cores')}</div>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <b>Auto Affinity</b>
-          <p style={{ margin: '4px 0 0' }}>
-            Detecta el proceso en primer plano y le asigna prioridad alta + los nucleos "rapidos" ({topology?.pCoreMask ?? '—'}).
-          </p>
+          <b>{t('aff.auto')}</b>
+          <p style={{ margin: '4px 0 0' }}>{t('aff.autoDesc', { mask: topology?.pCoreMask ?? '—' })}</p>
           {autoMessage && <div style={{ fontSize: 11.5, color: 'var(--accent-2)', marginTop: 6 }}>{autoMessage}</div>}
         </div>
         <button className="btn primary" disabled={autoRunning} onClick={runAutoAffinity}>
-          {autoRunning ? 'Ejecutando…' : 'Ejecutar'}
+          {autoRunning ? t('aff.running') : t('aff.run')}
         </button>
       </div>
 
-      <div className="section-label">Procesos activos</div>
+      <div className="section-label">{t('aff.processes')}</div>
       {loading ? (
-        <div className="empty-state">Listando procesos…</div>
+        <div className="empty-state">{t('aff.listing')}</div>
       ) : (
+        <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Proceso</th>
+              <th>{t('aff.process')}</th>
               <th>PID</th>
               <th>RAM</th>
-              <th>Prioridad</th>
-              <th>Afinidad</th>
+              <th>{t('aff.priority')}</th>
+              <th>{t('aff.affinity')}</th>
               <th></th>
             </tr>
           </thead>
@@ -137,8 +154,8 @@ export default function ToolsPage(): JSX.Element {
                     onChange={(e) => updatePriority(p.pid, e.target.value)}
                   >
                     {PRIORITIES.map((pr) => (
-                      <option key={pr} value={pr}>
-                        {pr}
+                      <option key={pr.value} value={pr.value}>
+                        {t(pr.key)}
                       </option>
                     ))}
                   </select>
@@ -153,6 +170,7 @@ export default function ToolsPage(): JSX.Element {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </>
   )

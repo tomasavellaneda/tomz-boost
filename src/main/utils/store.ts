@@ -29,9 +29,18 @@ export class JsonStore<T> {
     return this.cache
   }
 
+  /**
+   * Escribe a disco ANTES de actualizar el cache en memoria. Con el orden
+   * inverso (cache primero), un fallo de writeFileSync (permisos, disco
+   * lleno) dejaba el cache con un valor que en realidad nunca se persistio:
+   * get() devolvia "guardado" durante el resto de la sesion aunque en el
+   * proximo inicio de la app se perdiera el cambio. Ahora, si falla, el
+   * cache retiene el ultimo valor realmente persistido y la excepcion se
+   * propaga para que el llamador se entere.
+   */
   set(value: T): void {
-    this.cache = value
     writeFileSync(this.filePath, JSON.stringify(value, null, 2), 'utf-8')
+    this.cache = value
   }
 
   getDataDir(): string {

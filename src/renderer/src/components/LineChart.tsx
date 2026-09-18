@@ -21,7 +21,7 @@ export default function LineChart({ data, max = 100, color = 'var(--accent)', he
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height }}>
       <defs>
         <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -29,7 +29,7 @@ export default function LineChart({ data, max = 100, color = 'var(--accent)', he
         <line key={f} x1={0} x2={width} y1={height * f} y2={height * f} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
       ))}
       <path d={areaPath} fill="url(#areaFill)" stroke="none" />
-      <path d={linePath} fill="none" stroke={color} strokeWidth={2} style={{ filter: `drop-shadow(0 0 5px ${color})` }} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth={1.6} />
     </svg>
   )
 }
