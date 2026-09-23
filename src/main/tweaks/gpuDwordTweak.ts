@@ -1,6 +1,7 @@
 import { regQueryDword } from '../utils/registry'
 import { findGpuAdapterKeys, setValueOnAdaptersVerbose, deleteValueOnAdaptersVerbose } from './gpuRegistry'
 import type { TweakResult } from '../../shared/types'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 
 /**
  * Varios tweaks de GPU (NVIDIA/AMD) comparten exactamente el mismo patron:
@@ -61,11 +62,14 @@ export async function applyAdapterDwordTweak(spec: AdapterDwordTweakSpec, enable
       `[gpuDwordTweak] ${enabled ? 'fallo al escribir' : 'aviso al restaurar'} ${spec.valueName} (${spec.vendor}): ${write.error}`
     )
     if (enabled) {
+      const msg = tweakMessage(TweakMsg.applyAdmin, write.error ?? undefined)
       return {
         ok: false,
         verified: false,
         error: write.error ?? 'Error desconocido al escribir en el registro.',
-        message: `No se pudo aplicar (revisa permisos de administrador). ${write.error ?? ''}`.trim()
+        message: msg.message,
+        messageKey: msg.messageKey,
+        messageParams: msg.messageParams
       }
     }
   }
@@ -90,6 +94,7 @@ export async function applyAdapterDwordTweak(spec: AdapterDwordTweakSpec, enable
       ? enabled
         ? spec.enabledMessage
         : spec.disabledMessage
-      : 'Se aplico el cambio pero no se pudo confirmar en el registro.'
+      : tweakMessage(TweakMsg.unverifiedRegistry).message,
+    messageKey: verified ? undefined : TweakMsg.unverifiedRegistry
   }
 }

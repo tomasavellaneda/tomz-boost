@@ -18,6 +18,7 @@ import { getMsiState, setMsiModeForGpuAndNic, warmupMsiTargets } from './msiMode
 import { isCorePinEnabled, applyCorePin } from './corePin'
 import { isAutoCpuSetEnabled, setAutoCpuSetEnabled } from './autoCpuSet'
 import { NVIDIA_PROFILE_IDS, applyNvidiaProfile, isNvidiaProfileEnabled, type NvidiaProfileId } from './nvidiaProfiles'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 import { requireElevated } from '../utils/elevation'
 import type { RecommendedTweaksResult, TweakCategory, TweakDef, TweakResult, TweakToggleResult } from '../../shared/types'
 
@@ -417,7 +418,8 @@ function nicLatencyTweakResult(report: NicLatencyReport, wantEnable: boolean): T
       ok: false,
       verified: false,
       error: 'No se encontro un adaptador de red fisico activo.',
-      message: 'No se encontro un adaptador de red fisico activo.'
+      message: tweakMessage(TweakMsg.noPhysicalNic).message,
+      messageKey: TweakMsg.noPhysicalNic
     }
   }
 
@@ -459,29 +461,44 @@ function nicLatencyTweakResult(report: NicLatencyReport, wantEnable: boolean): T
 
   const detail = lines.join(' ')
   if (supportedOk === 0 && supportedFail === 0) {
+    const msg = tweakMessage(TweakMsg.nicUnsupported, detail)
     return {
       ok: false,
       verified: false,
       error: detail,
-      message: `Ninguna NIC soporta Power Management ni Interrupt Moderation. ${detail}`.trim()
+      message: msg.message,
+      messageKey: msg.messageKey,
+      messageParams: msg.messageParams
     }
   }
   if (supportedFail === 0) {
     const partial = unsupportedNotes > 0
+    const key = wantEnable
+      ? partial
+        ? TweakMsg.partialNicImOff
+        : null
+      : partial
+        ? TweakMsg.partialNicImRestore
+        : null
     const core = wantEnable
       ? partial
-        ? 'Aplicado parcialmente: moderacion de interrupciones desactivada.'
+        ? tweakMessage(TweakMsg.partialNicImOff).message
         : 'Ahorro de energia y moderacion de interrupciones de la NIC desactivados.'
       : partial
-        ? 'Restaurado parcialmente: moderacion de interrupciones restaurada.'
+        ? tweakMessage(TweakMsg.partialNicImRestore).message
         : 'Ahorro de energia de la NIC restaurado.'
-    return { ok: true, verified: true, message: `${core} ${detail}`.trim() }
+    return {
+      ok: true,
+      verified: true,
+      message: `${core} ${detail}`.trim(),
+      messageKey: key ?? undefined,
+      messageParams: key ? { detail } : undefined
+    }
   }
   if (supportedOk > 0) {
-    const core = wantEnable
-      ? 'Aplicado parcialmente: se logro al menos una de las dos partes.'
-      : 'Restaurado parcialmente: se logro al menos una de las dos partes.'
-    return { ok: true, verified: false, error: detail, message: `${core} ${detail}`.trim() }
+    const key = wantEnable ? TweakMsg.partialNicOneOfTwo : TweakMsg.partialNicOneOfTwoRestore
+    const msg = tweakMessage(key, detail)
+    return { ok: true, verified: false, error: detail, message: msg.message, messageKey: msg.messageKey, messageParams: msg.messageParams }
   }
   return {
     ok: false,
@@ -1811,7 +1828,7 @@ export async function applyRecommendedTweaks(): Promise<RecommendedTweaksResult>
 
 export async function toggleTweak(id: string, enabled: boolean): Promise<TweakToggleResult> {
   const tweak = TWEAKS.find((t) => t.id === id)
-  if (!tweak) return { ok: false, id, enabled: !enabled, message: 'Tweak desconocido.' }
+  if (!tweak) return { ok: false, id, enabled: !enabled, message: tweakMessage(TweakMsg.unknownTweak).message, messageKey: TweakMsg.unknownTweak }
   try {
     if (REQUIRES_ADMIN_IDS.has(id)) {
       const denied = await requireElevated()
@@ -1821,6 +1838,8 @@ export async function toggleTweak(id: string, enabled: boolean): Promise<TweakTo
           id,
           enabled: !enabled,
           message: denied.message,
+          messageKey: denied.messageKey,
+          messageParams: denied.messageParams,
           verified: false,
           error: denied.error
         }
@@ -1849,12 +1868,15 @@ export async function toggleTweak(id: string, enabled: boolean): Promise<TweakTo
       id,
       enabled: succeeded ? enabled : !enabled,
       message: result.message,
+      messageKey: (result as { messageKey?: string }).messageKey,
+      messageParams: (result as { messageParams?: Record<string, string | number> }).messageParams,
       requiresRestart: tweak.requiresRestart,
       verified,
       error: (result as { error?: string }).error
     }
   } catch (err) {
     console.error(`[tweaks] excepcion no capturada al aplicar '${id}':`, err)
-    return { ok: false, id, enabled: !enabled, message: `Error: ${String(err)}`, error: String(err) }
+    const msg = tweakMessage(TweakMsg.genericError, String(err))
+    return { ok: false, id, enabled: !enabled, message: msg.message, messageKey: msg.messageKey, messageParams: msg.messageParams, error: String(err) }
   }
 }

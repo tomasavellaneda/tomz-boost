@@ -2,8 +2,9 @@ import { app } from 'electron'
 import { spawn } from 'child_process'
 import { runPowerShell } from './shell'
 import type { TweakResult } from '../../shared/types'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 
-export const ADMIN_REQUIRED_MESSAGE = 'Este cambio requiere ejecutar la app como administrador'
+export const ADMIN_REQUIRED_MESSAGE = tweakMessage(TweakMsg.adminRequired).message
 
 let cachedElevated: boolean | null = null
 
@@ -28,11 +29,13 @@ export async function isElevated(): Promise<boolean> {
  */
 export async function requireElevated(): Promise<TweakResult | null> {
   if (await isElevated()) return null
+  const msg = tweakMessage(TweakMsg.adminRequired)
   return {
     ok: false,
     verified: false,
-    error: ADMIN_REQUIRED_MESSAGE,
-    message: ADMIN_REQUIRED_MESSAGE
+    error: msg.message,
+    message: msg.message,
+    messageKey: msg.messageKey
   }
 }
 

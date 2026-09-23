@@ -4,6 +4,7 @@ import { join } from 'path'
 import { regQueryDword, regSetVerbose } from '../utils/registry'
 import { deleteValueOnAdaptersVerbose, findGpuAdapterKeys, setValueOnAdaptersVerbose } from './gpuRegistry'
 import type { TweakResult } from '../../shared/types'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 
 // Los 7 perfiles originales (Basic/Casual/Competitive/Fps/Fps2/Latency/Advanced)
 // colapsaban en solo 2 configuraciones de registro reales: se consolidaron en
@@ -151,7 +152,8 @@ export async function applyNvidiaProfile(id: NvidiaProfileId | null): Promise<Tw
       ok: false,
       verified: false,
       error: 'No se detecto una GPU NVIDIA.',
-      message: 'No se detecto una GPU NVIDIA.'
+      message: tweakMessage(TweakMsg.noNvidia).message,
+      messageKey: TweakMsg.noNvidia
     }
   }
 
@@ -175,7 +177,8 @@ export async function applyNvidiaProfile(id: NvidiaProfileId | null): Promise<Tw
         : 'La relectura del registro no confirma que los valores se hayan restaurado.',
       message: verified
         ? 'Perfil NVIDIA restaurado y confirmado en el registro.'
-        : 'Se intento restaurar el perfil pero no se pudo confirmar en el registro (revisa permisos de administrador).'
+        : tweakMessage(TweakMsg.nvidiaRestoreUnverified).message,
+      messageKey: verified ? undefined : TweakMsg.nvidiaRestoreUnverified
     }
   }
 
@@ -199,7 +202,9 @@ export async function applyNvidiaProfile(id: NvidiaProfileId | null): Promise<Tw
       ok: false,
       verified: false,
       error: failedWrite.error ?? 'Error desconocido al escribir en el registro.',
-      message: `No se pudo aplicar el perfil (revisa permisos de administrador). ${failedWrite.error ?? ''}`.trim()
+      message: tweakMessage(TweakMsg.nvidiaApplyAdmin, failedWrite.error ?? undefined).message,
+      messageKey: TweakMsg.nvidiaApplyAdmin,
+      messageParams: failedWrite.error ? { detail: failedWrite.error } : undefined
     }
   }
 
@@ -220,7 +225,8 @@ export async function applyNvidiaProfile(id: NvidiaProfileId | null): Promise<Tw
       : 'La escritura no reporto error pero la relectura del registro no confirma el valor esperado (el driver puede haberlo rechazado).',
     message: verified
       ? 'Perfil NVIDIA aplicado y confirmado en el registro. Reinicia o relanza el juego para notarlo.'
-      : 'Se escribio el perfil pero no se pudo confirmar en el registro. Puede que el driver lo haya rechazado.'
+      : tweakMessage(TweakMsg.nvidiaUnverified).message,
+    messageKey: verified ? undefined : TweakMsg.nvidiaUnverified
   }
 }
 

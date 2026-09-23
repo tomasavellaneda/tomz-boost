@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import Switch from '../components/Switch'
+import { useI18n } from '../lib/i18n'
 import type { TweakDef } from '../../../shared/types'
 
 export default function FixesPage(): JSX.Element {
+  const { t } = useI18n()
   const [tweaks, setTweaks] = useState<TweakDef[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState<string | null>(null)
 
   useEffect(() => {
     window.api.tweaks.list().then(({ tweaks: list }) => {
-      setTweaks(list.filter((t) => t.category === 'fixes'))
+      setTweaks(list.filter((row) => row.category === 'fixes'))
       setLoading(false)
     })
   }, [])
@@ -17,27 +19,27 @@ export default function FixesPage(): JSX.Element {
   async function handleToggle(id: string, next: boolean): Promise<void> {
     setPending(id)
     const res = await window.api.tweaks.toggle(id, next)
-    setTweaks((prev) => prev.map((t) => (t.id === id ? { ...t, enabled: res.enabled } : t)))
+    setTweaks((prev) => prev.map((row) => (row.id === id ? { ...row, enabled: res.enabled } : row)))
     setPending(null)
   }
 
-  if (loading) return <div className="empty-state">Cargando correcciones…</div>
+  if (loading) return <div className="empty-state">{t('tweaks.loading')}</div>
 
   return (
     <div className="grid-auto">
-      {tweaks.map((t) => (
-        <div className="tweak-card" key={t.id}>
+      {tweaks.map((row) => (
+        <div className="tweak-card" key={row.id}>
           <div className="top-row">
             <div className="left">
-              <div className="ico-box">{t.id === 'location' ? '📍' : t.id === 'notifications' ? '🔔' : '🛡️'}</div>
+              <div className="ico-box">{row.id === 'location' ? '📍' : row.id === 'notifications' ? '🔔' : '🛡️'}</div>
               <div>
-                <b>{t.label}</b>
-                <span className={`pill ${t.enabled ? '' : 'off'}`}>{t.enabled ? 'Activado' : 'Desactivado'}</span>
+                <b>{row.label}</b>
+                <span className={`pill ${row.enabled ? '' : 'off'}`}>{row.enabled ? t('nvidia.on') : t('nvidia.off')}</span>
               </div>
             </div>
-            <Switch checked={t.enabled} disabled={pending === t.id} onChange={(v) => handleToggle(t.id, v)} />
+            <Switch checked={row.enabled} disabled={pending === row.id} onChange={(v) => handleToggle(row.id, v)} />
           </div>
-          {t.requiresRestart && <span className="warn">Requiere reiniciar Windows para aplicarse por completo.</span>}
+          {row.requiresRestart && <span className="warn">{t('tweaks.restart')}</span>}
         </div>
       ))}
     </div>

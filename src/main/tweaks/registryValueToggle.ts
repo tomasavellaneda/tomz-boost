@@ -1,6 +1,7 @@
 import { regQuery, regQueryDword, regSetVerbose, regDeleteVerbose, type RegType } from '../utils/registry'
 import { getBackup, saveBackup } from './backup'
 import type { TweakResult } from '../../shared/types'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 
 /**
  * Generalizacion de registryDwordToggle.ts para tweaks que mezclan REG_SZ y
@@ -116,11 +117,14 @@ export async function applyRegistryValueToggle(spec: RegistryValueToggleSpec, en
     const backups = await Promise.all(spec.targets.map(backupOriginalIfMissing))
     const failedBackup = backups.find((b) => !b.ok)
     if (failedBackup) {
+      const msg = tweakMessage(TweakMsg.backupAborted, failedBackup.error ?? undefined)
       return {
         ok: false,
         verified: false,
         error: failedBackup.error ?? 'No se pudo guardar el backup.',
-        message: 'No se pudo guardar el backup; no se aplico el cambio por seguridad'
+        message: msg.message,
+        messageKey: msg.messageKey,
+        messageParams: msg.messageParams
       }
     }
   }
@@ -138,11 +142,14 @@ export async function applyRegistryValueToggle(spec: RegistryValueToggleSpec, en
     console.error(
       `[registryValueToggle] fallo al escribir en ${spec.targets.map((t) => `${t.keyPath}\\${t.valueName}`).join(', ')}: ${failed.error}`
     )
+    const msg = tweakMessage(TweakMsg.applyAdmin, failed.error ?? undefined)
     return {
       ok: false,
       verified: false,
       error: failed.error ?? 'Error desconocido al escribir en el registro.',
-      message: `No se pudo aplicar (revisa permisos de administrador). ${failed.error ?? ''}`.trim()
+      message: msg.message,
+      messageKey: msg.messageKey,
+      messageParams: msg.messageParams
     }
   }
 
@@ -170,6 +177,7 @@ export async function applyRegistryValueToggle(spec: RegistryValueToggleSpec, en
       ? enabled
         ? spec.enabledMessage
         : spec.disabledMessage
-      : 'Se aplico el cambio pero no se pudo confirmar en el registro.'
+      : tweakMessage(TweakMsg.unverifiedRegistry).message,
+    messageKey: verified ? undefined : TweakMsg.unverifiedRegistry
   }
 }

@@ -1,4 +1,5 @@
 import type { TweakResult } from '../../shared/types'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 
 /**
  * Patron de corePin/autoCpuSet: no tocan el registro/servicios directamente,
@@ -17,11 +18,14 @@ export async function applyLocalFlagToggle(
     setEnabled(enabled)
   } catch (err) {
     console.error(`[${messages.logPrefix}] fallo al guardar la configuracion: ${String(err)}`)
+    const msg = tweakMessage(TweakMsg.configSaveFailed, String(err))
     return {
       ok: false,
       verified: false,
       error: String(err),
-      message: `No se pudo guardar la configuracion (revisa permisos de la carpeta de datos de la app). ${String(err)}`
+      message: msg.message,
+      messageKey: msg.messageKey,
+      messageParams: msg.messageParams
     }
   }
 
@@ -38,6 +42,7 @@ export async function applyLocalFlagToggle(
       ? enabled
         ? messages.enabledMessage
         : messages.disabledMessage
-      : 'Se aplico el cambio pero no se pudo confirmar.'
+      : tweakMessage(TweakMsg.unverifiedGeneric).message,
+    messageKey: verified ? undefined : TweakMsg.unverifiedGeneric
   }
 }

@@ -1,6 +1,7 @@
 import { runPowerShellJson } from '../utils/shell'
 import { regQueryDword, regSetVerbose } from '../utils/registry'
 import type { TweakResult } from '../../shared/types'
+import { TweakMsg, tweakMessage } from '../../shared/tweakMessages'
 
 interface PnpRow {
   InstanceId?: string
@@ -52,8 +53,8 @@ export async function setMsiModeForGpuAndNic(enabled: boolean): Promise<TweakRes
   const { gpu, nic } = await getTargets()
   const ids = [gpu, nic].filter(Boolean) as string[]
   if (ids.length === 0) {
-    const message = 'No se encontraron dispositivos de GPU/red compatibles.'
-    return { ok: false, verified: false, error: message, message }
+    const msg = tweakMessage(TweakMsg.noMsiDevices)
+    return { ok: false, verified: false, error: msg.message, message: msg.message, messageKey: msg.messageKey }
   }
 
   const value = enabled ? '1' : '0'
@@ -61,11 +62,14 @@ export async function setMsiModeForGpuAndNic(enabled: boolean): Promise<TweakRes
   const failed = writes.find((w) => !w.ok)
   if (failed) {
     console.error(`[msiMode] fallo al escribir MSISupported: ${failed.error}`)
+    const msg = tweakMessage(TweakMsg.applyAdmin, failed.error ?? undefined)
     return {
       ok: false,
       verified: false,
       error: failed.error ?? 'Error desconocido al escribir en el registro.',
-      message: `No se pudo aplicar (revisa permisos de administrador). ${failed.error ?? ''}`.trim()
+      message: msg.message,
+      messageKey: msg.messageKey,
+      messageParams: msg.messageParams
     }
   }
 
@@ -88,6 +92,7 @@ export async function setMsiModeForGpuAndNic(enabled: boolean): Promise<TweakRes
       ? enabled
         ? `Modo MSI activado en ${ids.length} dispositivo(s). Reinicia para aplicar.`
         : `Modo MSI desactivado en ${ids.length} dispositivo(s).`
-      : 'Se aplico el cambio pero no se pudo confirmar en el registro.'
+      : tweakMessage(TweakMsg.unverifiedRegistry).message,
+    messageKey: verified ? undefined : TweakMsg.unverifiedRegistry
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Switch from '../components/Switch'
 import LineIcon, { type LineIconName } from '../components/LineIcon'
 import { useI18n } from '../lib/i18n'
+import { translateTweakAlert } from '../lib/tweakAlerts'
 import type { TweakDef } from '../../../shared/types'
 
 type Tab = 'general' | 'gpu' | 'network' | 'security' | 'games'
@@ -133,8 +134,17 @@ export default function TweaksPage(): JSX.Element {
     try {
       const res = await window.api.tweaks.applyRecommended()
       setTweaks((prev) => prev.map((row) => (res.enabled.includes(row.id) ? { ...row, enabled: true } : row)))
-      if (!res.ok) setToggleError(res.failed.map((id) => `${id}: ${res.log.find((l) => l.startsWith(id)) ?? 'error'}`).join(' · '))
-      else setToggleError(null)
+      if (!res.ok) {
+        setToggleError(
+          res.failed
+            .map((id) => {
+              const raw = res.log.find((l) => l.startsWith(id)) ?? 'error'
+              const msg = raw.includes(':') ? raw.slice(raw.indexOf(':') + 1).trim() : raw
+              return `${id}: ${translateTweakAlert(t, { message: msg.replace(/^ERROR\s+/i, '') })}`
+            })
+            .join(' · ')
+        )
+      } else setToggleError(null)
     } catch (err) {
       setToggleError(String(err))
     } finally {
@@ -154,8 +164,15 @@ export default function TweaksPage(): JSX.Element {
           return row.id === id ? { ...row, enabled: res.enabled } : row
         })
       )
-      if (!res.ok) setToggleError(`${id}: ${res.message}`)
-      else setToggleError(null)
+      if (!res.ok) {
+        setToggleError(
+          `${id}: ${translateTweakAlert(t, {
+            message: res.message,
+            messageKey: res.messageKey,
+            messageParams: res.messageParams
+          })}`
+        )
+      } else setToggleError(null)
     } catch (err) {
       setToggleError(`${id}: ${String(err)}`)
     } finally {

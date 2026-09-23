@@ -93,6 +93,9 @@ export interface TweakResult {
   verified: boolean
   error?: string
   message: string
+  /** Clave i18n (renderer). Si falta, la UI intenta mapear `message` ES. */
+  messageKey?: string
+  messageParams?: Record<string, string | number>
 }
 
 export interface TweakToggleResult {
@@ -100,6 +103,8 @@ export interface TweakToggleResult {
   id: string
   enabled: boolean
   message: string
+  messageKey?: string
+  messageParams?: Record<string, string | number>
   requiresRestart?: boolean
   /** Presente cuando el tweak ya migro al patron TweakResult (ver arriba). */
   verified?: boolean
