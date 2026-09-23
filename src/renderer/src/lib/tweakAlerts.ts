@@ -1,4 +1,4 @@
-import { TweakMsg, TweakMsgEs, type TweakMsgKey } from '../../../shared/tweakMessages'
+import { TweakMsg, type TweakMsgKey } from '../../../shared/tweakMessages'
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string
 
@@ -51,17 +51,42 @@ const ES_PREFIXES: Array<{ prefix: string; key: TweakMsgKey }> = [
   { prefix: 'Error:', key: TweakMsg.genericError }
 ]
 
+/** Errores tipicos de Windows/reg.exe en ES → clave i18n. */
+const SYSTEM_DETAIL_KEYS: Array<{ match: RegExp; key: string }> = [
+  { match: /acceso denegado/i, key: 'tweaks.err.accessDenied' },
+  { match: /access is denied/i, key: 'tweaks.err.accessDenied' },
+  { match: /acceso\s+negado/i, key: 'tweaks.err.accessDenied' }
+]
+
+function translateDetail(t: TFn, detail: string): string {
+  const trimmed = detail.trim()
+  if (!trimmed) return ''
+  for (const { match, key } of SYSTEM_DETAIL_KEYS) {
+    if (match.test(trimmed)) {
+      const label = t(key)
+      if (label !== key) return label
+    }
+  }
+  // "ERROR: Acceso denegado." → keep ERROR prefix localized if possible
+  const errMatch = trimmed.match(/^ERROR:\s*(.+)$/i)
+  if (errMatch) {
+    const inner = translateDetail(t, errMatch[1])
+    if (inner !== errMatch[1]) return `${t('tweaks.err.errorPrefix')} ${inner}`.trim()
+  }
+  return trimmed
+}
+
 export function translateTweakAlert(
   t: TFn,
   opts: { message: string; messageKey?: string; messageParams?: Record<string, string | number> }
 ): string {
+  const detailRaw = opts.messageParams?.detail != null ? String(opts.messageParams.detail) : ''
+  const detail = translateDetail(t, detailRaw)
+
   if (opts.messageKey) {
-    const translated = t(opts.messageKey, opts.messageParams)
+    const translated = t(opts.messageKey, detail ? { detail } : opts.messageParams)
     if (translated !== opts.messageKey) {
-      const detail = opts.messageParams?.detail
-      if (detail != null && String(detail).trim() && !translated.includes(String(detail))) {
-        return `${translated} ${String(detail)}`.trim()
-      }
+      if (detail && !translated.includes(detail)) return `${translated} ${detail}`.trim()
       return translated
     }
   }
@@ -69,15 +94,12 @@ export function translateTweakAlert(
   const raw = opts.message.trim()
   for (const { prefix, key } of ES_PREFIXES) {
     if (raw === prefix || raw.startsWith(prefix)) {
-      const rest = raw.slice(prefix.length).trim()
+      const rest = translateDetail(t, raw.slice(prefix.length).trim())
       const translated = t(key, rest ? { detail: rest } : undefined)
       if (translated === key) break
-      const esBase = TweakMsgEs[key]
-      // Si el backend mando detalle tecnico despues del mensaje ES, lo conservamos.
       if (rest && !translated.includes(rest)) return `${translated} ${rest}`.trim()
-      if (rest && translated === esBase) return `${translated} ${rest}`.trim()
       return translated
     }
   }
-  return raw
+  return translateDetail(t, raw) || raw
 }

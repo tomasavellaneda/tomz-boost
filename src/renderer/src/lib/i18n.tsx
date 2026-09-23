@@ -129,6 +129,8 @@ const es: Dict = {
   'tweaks.err.configSaveFailed': 'No se pudo guardar la configuracion local.',
   'tweaks.err.genericError': 'Error al aplicar el tweak.',
   'tweaks.err.autotuneFailed': 'TCP auto-tuning: no se pudo dejar en normal.',
+  'tweaks.err.accessDenied': 'ERROR: Acceso denegado.',
+  'tweaks.err.errorPrefix': 'ERROR:',
   'gpu.intel': 'Se detecto una GPU Intel. No hay tweaks especificos para esta marca.',
   'gpu.unknown': 'No se detecto una GPU NVIDIA o AMD.',
 
@@ -390,6 +392,8 @@ const en: Dict = {
   'tweaks.err.configSaveFailed': 'Could not save local configuration.',
   'tweaks.err.genericError': 'Error applying the tweak.',
   'tweaks.err.autotuneFailed': 'TCP auto-tuning: could not set to normal.',
+  'tweaks.err.accessDenied': 'ERROR: Access denied.',
+  'tweaks.err.errorPrefix': 'ERROR:',
   'gpu.intel': 'An Intel GPU was detected. There are no brand-specific tweaks for it.',
   'gpu.unknown': 'No NVIDIA or AMD GPU was detected.',
 
@@ -651,6 +655,8 @@ const pt: Dict = {
   'tweaks.err.configSaveFailed': 'Não foi possível salvar a configuração local.',
   'tweaks.err.genericError': 'Erro ao aplicar o tweak.',
   'tweaks.err.autotuneFailed': 'TCP auto-tuning: não foi possível deixar em normal.',
+  'tweaks.err.accessDenied': 'ERROR: Acesso negado.',
+  'tweaks.err.errorPrefix': 'ERROR:',
   'gpu.intel': 'Foi detectada uma GPU Intel. Não há tweaks específicos para esta marca.',
   'gpu.unknown': 'Não foi detectada uma GPU NVIDIA ou AMD.',
 

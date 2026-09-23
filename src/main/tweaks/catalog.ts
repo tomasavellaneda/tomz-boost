@@ -500,11 +500,16 @@ function nicLatencyTweakResult(report: NicLatencyReport, wantEnable: boolean): T
     const msg = tweakMessage(key, detail)
     return { ok: true, verified: false, error: detail, message: msg.message, messageKey: msg.messageKey, messageParams: msg.messageParams }
   }
-  return {
-    ok: false,
-    verified: false,
-    error: detail,
-    message: `No se pudo aplicar. ${detail}`.trim()
+  {
+    const msg = tweakMessage(TweakMsg.applyFailed, detail)
+    return {
+      ok: false,
+      verified: false,
+      error: detail,
+      message: msg.message,
+      messageKey: msg.messageKey,
+      messageParams: msg.messageParams
+    }
   }
 }
 
@@ -904,11 +909,14 @@ const TWEAKS: TweakRuntime[] = [
         const backup = await backupWidgetsCopilotOriginals()
         if (!backup.ok) {
           console.error(`[widgetsCopilot] no se pudo guardar el backup: ${backup.error}`)
+          const msg = tweakMessage(TweakMsg.backupAborted, backup.error ?? undefined)
           return {
             ok: false,
             verified: false,
             error: backup.error ?? 'No se pudo guardar el backup.',
-            message: 'No se pudo guardar el backup; no se aplico el cambio por seguridad'
+            message: msg.message,
+            messageKey: msg.messageKey,
+            messageParams: msg.messageParams
           }
         }
       }
@@ -931,7 +939,9 @@ const TWEAKS: TweakRuntime[] = [
           ok: false,
           verified: false,
           error: failed.error ?? 'Error desconocido al escribir en el registro.',
-          message: `No se pudo aplicar (revisa permisos de administrador). ${failed.error ?? ''}`.trim()
+          message: tweakMessage(TweakMsg.applyAdmin, failed.error ?? undefined).message,
+          messageKey: TweakMsg.applyAdmin,
+          messageParams: (failed.error ? { detail: String(failed.error) } : undefined)
         }
       }
 
@@ -954,7 +964,8 @@ const TWEAKS: TweakRuntime[] = [
           ? enabled
             ? 'Widgets, Chat y Copilot ocultos y bloqueados por politica.'
             : 'Widgets, Chat y Copilot restaurados al valor original.'
-          : 'Se aplico el cambio pero no se pudo confirmar en el registro.'
+          : tweakMessage(TweakMsg.unverifiedRegistry).message,
+        messageKey: verified ? undefined : TweakMsg.unverifiedRegistry
       }
     }
   },
@@ -1151,7 +1162,9 @@ const TWEAKS: TweakRuntime[] = [
             ok: false,
             verified: false,
             error: failed.error ?? 'Error desconocido al escribir en el registro.',
-            message: `No se pudo aplicar (revisa permisos de administrador). ${failed.error ?? ''}`.trim()
+            message: tweakMessage(TweakMsg.applyAdmin, failed.error ?? undefined).message,
+          messageKey: TweakMsg.applyAdmin,
+          messageParams: (failed.error ? { detail: String(failed.error) } : undefined)
           }
         }
         console.warn(`[tweaks] 'internet': aviso al restaurar Nagle: ${failed.error}`)
@@ -1204,7 +1217,9 @@ const TWEAKS: TweakRuntime[] = [
             ok: false,
             verified: false,
             error,
-            message: `No se pudo aplicar (revisa permisos de administrador). ${error}`.trim()
+            message: tweakMessage(TweakMsg.applyAdmin, error ?? undefined).message,
+          messageKey: TweakMsg.applyAdmin,
+          messageParams: (error ? { detail: String(error) } : undefined)
           }
         }
         // powercfg puede devolver exit code 0 aunque el esquema no haya
@@ -1236,7 +1251,9 @@ const TWEAKS: TweakRuntime[] = [
           ok: false,
           verified: false,
           error,
-          message: `No se pudo restaurar (revisa permisos de administrador). ${error}`.trim()
+          message: tweakMessage(TweakMsg.restoreAdmin, error ?? undefined).message,
+          messageKey: TweakMsg.restoreAdmin,
+          messageParams: (error ? { detail: String(error) } : undefined)
         }
       }
       const verified = !(await powerPlanActiveIsPerformance()) && (await hibernateEnabledValue()) === 1
@@ -1278,7 +1295,9 @@ const TWEAKS: TweakRuntime[] = [
           ok: false,
           verified: false,
           error,
-          message: `No se pudo aplicar (revisa permisos de administrador). ${error}`.trim()
+          message: tweakMessage(TweakMsg.applyAdmin, error ?? undefined).message,
+          messageKey: TweakMsg.applyAdmin,
+          messageParams: (error ? { detail: String(error) } : undefined)
         }
       }
 
