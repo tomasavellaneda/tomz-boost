@@ -63,7 +63,12 @@ export default function TweaksPage(): JSX.Element {
   const [win32Preset, setWin32Preset] = useState<string | null>(null)
   const [win32Busy, setWin32Busy] = useState(false)
   const [recBusy, setRecBusy] = useState(false)
-  const [toggleError, setToggleError] = useState<string | null>(null)
+  const [toggleAlert, setToggleAlert] = useState<{
+    id?: string
+    message: string
+    messageKey?: string
+    messageParams?: Record<string, string | number>
+  } | null>(null)
 
   const pageRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLElement>(null)
@@ -135,18 +140,18 @@ export default function TweaksPage(): JSX.Element {
       const res = await window.api.tweaks.applyRecommended()
       setTweaks((prev) => prev.map((row) => (res.enabled.includes(row.id) ? { ...row, enabled: true } : row)))
       if (!res.ok) {
-        setToggleError(
-          res.failed
+        setToggleAlert({
+          message: res.failed
             .map((id) => {
               const raw = res.log.find((l) => l.startsWith(id)) ?? 'error'
               const msg = raw.includes(':') ? raw.slice(raw.indexOf(':') + 1).trim() : raw
-              return `${id}: ${translateTweakAlert(t, { message: msg.replace(/^ERROR\s+/i, '') })}`
+              return `${id}: ${msg.replace(/^ERROR\s+/i, '')}`
             })
             .join(' · ')
-        )
-      } else setToggleError(null)
+        })
+      } else setToggleAlert(null)
     } catch (err) {
-      setToggleError(String(err))
+      setToggleAlert({ message: String(err) })
     } finally {
       setRecBusy(false)
     }
@@ -165,16 +170,15 @@ export default function TweaksPage(): JSX.Element {
         })
       )
       if (!res.ok) {
-        setToggleError(
-          `${id}: ${translateTweakAlert(t, {
-            message: res.message,
-            messageKey: res.messageKey,
-            messageParams: res.messageParams
-          })}`
-        )
-      } else setToggleError(null)
+        setToggleAlert({
+          id,
+          message: res.message,
+          messageKey: res.messageKey,
+          messageParams: res.messageParams
+        })
+      } else setToggleAlert(null)
     } catch (err) {
-      setToggleError(`${id}: ${String(err)}`)
+      setToggleAlert({ id, message: String(err) })
     } finally {
       setPending(null)
     }
@@ -321,7 +325,12 @@ export default function TweaksPage(): JSX.Element {
         </div>
       </nav>
 
-      {toggleError && <div className="banner">{toggleError}</div>}
+      {toggleAlert && (
+        <div className="banner">
+          {toggleAlert.id ? `${toggleAlert.id}: ` : ''}
+          {translateTweakAlert(t, toggleAlert)}
+        </div>
+      )}
 
       <div className="panel" style={{ marginBottom: 10 }}>
         <div className="setting-row">

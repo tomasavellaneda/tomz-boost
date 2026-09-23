@@ -92,6 +92,22 @@ export function translateTweakAlert(
   }
 
   const raw = opts.message.trim()
+
+  // applyRecommended une varios fallos con " · "
+  if (raw.includes(' · ')) {
+    return raw
+      .split(' · ')
+      .map((part) => translateTweakAlert(t, { message: part.trim() }))
+      .join(' · ')
+  }
+
+  // "widgetsCopilot: No se pudo aplicar..." (log / recommended sin messageKey)
+  const idPrefixed = raw.match(/^([A-Za-z][\w]*)\s*:\s*(.+)$/s)
+  if (idPrefixed) {
+    const body = translateTweakAlert(t, { message: idPrefixed[2].trim() })
+    return `${idPrefixed[1]}: ${body}`
+  }
+
   for (const { prefix, key } of ES_PREFIXES) {
     if (raw === prefix || raw.startsWith(prefix)) {
       const rest = translateDetail(t, raw.slice(prefix.length).trim())
