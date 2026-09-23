@@ -644,7 +644,7 @@ async function sendPayment(interaction, method, product) {
       product: kind
     })
     const methodCopy = copy[method]
-    const pix = order.copyPaste ? `Pix Copia e Cola:\n\`\`\`${order.copyPaste}\`\`\`` : ''
+    const pix = method === 'br' && order.copyPaste ? `Pix Copia e Cola:\n\`\`\`${order.copyPaste}\`\`\`` : ''
     const embed = new EmbedBuilder()
       .setColor(0x0080ff)
       .setTitle(`${kind === 'custom' ? copy.productCustom : copy.productApp} · ${methodCopy.title}`)

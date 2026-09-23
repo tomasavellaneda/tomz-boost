@@ -1,0 +1,8 @@
+# Railway: servicio del bot Discord (no la app Electron).
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "node scripts/discord-key-bot.cjs"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

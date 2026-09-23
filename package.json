@@ -16,13 +16,15 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
     "dist": "electron-vite build && electron-builder --win",
     "key:new": "node scripts/generate-key.cjs",
+    "start:bot": "node scripts/discord-key-bot.cjs",
     "bot": "node scripts/discord-key-bot.cjs",
     "icon": "node scripts/generate-icon.cjs",
     "test:nvidia-profile-migration": "node scripts/test-nvidia-profile-migration.cjs",
     "test:registry-toggle-backup": "node scripts/test-registry-toggle-backup.cjs",
     "test:retire-legacy-tweaks": "node scripts/test-retire-legacy-tweaks.cjs",
     "test:service-starttype-parse": "node scripts/test-service-starttype-parse.cjs",
-    "test:cold-boot-reg-reads": "node scripts/test-cold-boot-reg-reads.cjs"
+    "test:cold-boot-reg-reads": "node scripts/test-cold-boot-reg-reads.cjs",
+    "test:mp-qr-png": "node scripts/test-mp-qr-png.cjs"
   },
   "build": {
     "appId": "com.tomzboost.app",

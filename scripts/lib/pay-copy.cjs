@@ -33,7 +33,7 @@ const COPY = {
     missingMethod: 'Ese medio de pago no esta configurado todavia.',
     ar: {
       title: 'Mercado Pago · Argentina',
-      body: 'Escanea el QR o abre el link.'
+      body: 'Escanea el QR o abre el link de Checkout Pro.'
     },
     br: {
       title: 'Pix · Brasil',
@@ -70,7 +70,7 @@ const COPY = {
     missingMethod: 'That payment method is not configured yet.',
     ar: {
       title: 'Mercado Pago · Argentina',
-      body: 'Scan the QR or open the link.'
+      body: 'Scan the QR or open the Checkout Pro link.'
     },
     br: {
       title: 'Pix · Brazil',
@@ -107,7 +107,7 @@ const COPY = {
     missingMethod: 'Esse meio de pagamento ainda não está configurado.',
     ar: {
       title: 'Mercado Pago · Argentina',
-      body: 'Escaneie o QR ou abra o link.'
+      body: 'Escaneie o QR ou abra o link do Checkout Pro.'
     },
     br: {
       title: 'Pix · Brasil',

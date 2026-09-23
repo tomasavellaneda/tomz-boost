@@ -164,7 +164,76 @@ async function createMercadoPagoPix({ orderId, userId, product, amount }) {
   }
 }
 
-async function createMercadoPagoAr({ orderId, userId, product, amount }) {
+function moneyAmount(amount) {
+  return Number(amount).toFixed(2)
+}
+
+function arPosId() {
+  return env('MP_AR_POS_ID') || env('MP_AR_EXTERNAL_POS_ID') || 'tomzboost-discord'
+}
+
+function arQrMode() {
+  // En Discord siempre queremos un QR unico por pedido (dynamic / hybrid).
+  const mode = (env('MP_AR_QR_MODE') || 'dynamic').toLowerCase()
+  if (mode === 'hybrid') return 'hybrid'
+  return 'dynamic'
+}
+
+/** QR nativo MP (Orders API). Requiere caja creada en Mercado Pago. */
+async function createMercadoPagoArQr({ orderId, product, amount }) {
+  const token = env('MP_AR_ACCESS_TOKEN')
+  const posId = arPosId()
+  const amountStr = moneyAmount(amount)
+  const body = {
+    type: 'qr',
+    total_amount: amountStr,
+    description: productTitle(product).slice(0, 150),
+    external_reference: String(orderId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64),
+    expiration_time: 'PT40M',
+    config: {
+      qr: {
+        external_pos_id: posId,
+        mode: arQrMode()
+      }
+    },
+    transactions: {
+      payments: [{ amount: amountStr }]
+    },
+    items: [
+      {
+        title: productTitle(product).slice(0, 150),
+        unit_price: amountStr,
+        quantity: 1,
+        unit_measure: 'unit',
+        external_code: String(orderId).slice(0, 60)
+      }
+    ]
+  }
+  const data = await jsonFetch('https://api.mercadopago.com/v1/orders', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-Idempotency-Key': orderId
+    },
+    body: JSON.stringify(body)
+  })
+  const qrData = data.type_response?.qr_data || data.qr_data || ''
+  if (!qrData) {
+    throw new Error(
+      `Mercado Pago AR no devolvio qr_data (caja ${posId}). Crea una caja QR en MP y setea MP_AR_POS_ID con su external_id.`
+    )
+  }
+  const paymentId = data.transactions?.payments?.[0]?.id
+  return {
+    mpOrderId: String(data.id),
+    mpPaymentId: paymentId ? String(paymentId) : '',
+    qrPayload: qrData,
+    arQrNative: true
+  }
+}
+
+async function createMercadoPagoArCheckout({ orderId, userId, product, amount }) {
   const token = env('MP_AR_ACCESS_TOKEN')
   const notify = publicUrl()
   const body = {
@@ -179,6 +248,9 @@ async function createMercadoPagoAr({ orderId, userId, product, amount }) {
     payer: { email: payerEmail(userId) },
     external_reference: orderId,
     metadata: { discord_user: userId, product },
+    statement_descriptor: 'TOMZ BOOST',
+    expires: true,
+    expiration_date_to: new Date(Date.now() + TTL_MS).toISOString(),
     auto_return: 'approved',
     back_urls: {
       success: env('PAYMENTS_SUCCESS_URL') || 'https://discord.com/app',
@@ -192,8 +264,26 @@ async function createMercadoPagoAr({ orderId, userId, product, amount }) {
   } catch {
     delete body.auto_return
     delete body.back_urls
+    delete body.expires
+    delete body.expiration_date_to
     return postArPreference(token, body)
   }
+}
+
+/**
+ * Integracion online = Checkout Pro (preferencia + QR del checkout).
+ * Opcional: MP_AR_QR=native usa Orders/caja presencial.
+ */
+async function createMercadoPagoAr({ orderId, userId, product, amount }) {
+  const mode = (env('MP_AR_QR') || 'checkout').toLowerCase()
+  if (['native', 'orders', 'pos', 'caja'].includes(mode)) {
+    try {
+      return await createMercadoPagoArQr({ orderId, product, amount })
+    } catch (err) {
+      console.warn('MP AR QR de caja fallo, uso Checkout Pro:', err.message || err)
+    }
+  }
+  return createMercadoPagoArCheckout({ orderId, userId, product, amount })
 }
 
 async function postArPreference(token, body) {
@@ -207,7 +297,12 @@ async function postArPreference(token, body) {
   })
   const url = data.init_point || data.sandbox_init_point
   if (!url) throw new Error('Mercado Pago AR no devolvio el link de pago.')
-  return { mpPreferenceId: data.id, url }
+  // QR apunta al checkout de la preferencia (integracion Checkout Pro).
+  const qrPayload =
+    data.id != null
+      ? `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(data.id)}`
+      : url
+  return { mpPreferenceId: data.id, url, qrPayload, arQrNative: false }
 }
 
 function formBody(fields) {
@@ -302,7 +397,7 @@ async function createPayment({ method, userId, lang, product }) {
 
   let qrBuffer = null
   if (pay.qrBase64) qrBuffer = Buffer.from(pay.qrBase64, 'base64')
-  else if (pay.copyPaste) qrBuffer = await qrPng(pay.copyPaste)
+  else if (pay.qrPayload || pay.copyPaste) qrBuffer = await qrPng(pay.qrPayload || pay.copyPaste)
   else if (pay.url) qrBuffer = await qrPng(pay.url)
 
   return { order, quote, qrBuffer }
@@ -335,6 +430,17 @@ async function mpPaymentApproved(paymentId, token) {
     headers: { Authorization: `Bearer ${token}` }
   })
   return data.status === 'approved'
+}
+
+async function mpOrderPaid(orderId, token) {
+  if (!orderId || !token) return false
+  const data = await jsonFetch(`https://api.mercadopago.com/v1/orders/${orderId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  const status = String(data.status || '').toLowerCase()
+  if (['processed', 'paid', 'closed'].includes(status)) return true
+  const payments = data.transactions?.payments || []
+  return payments.some((p) => ['processed', 'approved', 'paid'].includes(String(p.status || '').toLowerCase()))
 }
 
 async function mpSearchApproved(externalId, token) {
@@ -385,9 +491,11 @@ async function checkOrder(order) {
   try {
     if (order.method === 'br') paid = await mpPaymentApproved(order.mpPaymentId, env('MP_BR_ACCESS_TOKEN'))
     else if (order.method === 'ar') {
+      const token = env('MP_AR_ACCESS_TOKEN')
       paid =
-        (await mpSearchApproved(order.id, env('MP_AR_ACCESS_TOKEN'))) ||
-        (order.mpPaymentId ? await mpPaymentApproved(order.mpPaymentId, env('MP_AR_ACCESS_TOKEN')) : false)
+        (order.mpOrderId ? await mpOrderPaid(order.mpOrderId, token) : false) ||
+        (await mpSearchApproved(order.id, token)) ||
+        (order.mpPaymentId ? await mpPaymentApproved(order.mpPaymentId, token) : false)
     } else if (order.method === 'stripe') paid = await stripePaid(order.stripeSessionId)
     else if (order.method === 'crypto') paid = await cryptoPaid(order)
   } catch (err) {
@@ -422,6 +530,7 @@ function findByExternal(ref) {
     Object.values(db.orders).find(
       (o) =>
         o.mpPaymentId === String(ref) ||
+        o.mpOrderId === String(ref) ||
         o.mpPreferenceId === String(ref) ||
         o.stripeSessionId === String(ref) ||
         o.nowInvoiceId === String(ref)
@@ -446,7 +555,7 @@ function readBody(req) {
 }
 
 function startWebhookServer(onPaid) {
-  const port = Number(env('PAYMENTS_PORT') || 0)
+  const port = Number(env('PAYMENTS_PORT') || env('PORT') || 0)
   if (!port) return null
   const server = http.createServer(async (req, res) => {
     try {
@@ -464,9 +573,11 @@ function startWebhookServer(onPaid) {
       const url = new URL(req.url, 'http://localhost')
       if (url.pathname === '/webhooks/mercadopago') {
         let paymentId = url.searchParams.get('data.id') || url.searchParams.get('id')
+        let topic = url.searchParams.get('topic') || url.searchParams.get('type') || ''
         try {
           const json = JSON.parse(raw.toString('utf8') || '{}')
           paymentId = json.data?.id || json.id || paymentId
+          topic = json.type || json.action || topic
         } catch {
           /* querystring IPN */
         }
@@ -474,8 +585,27 @@ function startWebhookServer(onPaid) {
           let order = findByExternal(String(paymentId))
           if (!order) {
             const tokens = [env('MP_AR_ACCESS_TOKEN'), env('MP_BR_ACCESS_TOKEN')].filter(Boolean)
+            const looksLikeOrder = String(topic).toLowerCase().includes('order') || String(paymentId).startsWith('ORD')
             for (const token of tokens) {
               try {
+                if (looksLikeOrder || token === env('MP_AR_ACCESS_TOKEN')) {
+                  try {
+                    const ord = await jsonFetch(`https://api.mercadopago.com/v1/orders/${paymentId}`, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    })
+                    order = findByExternal(ord.external_reference) || findByExternal(String(ord.id))
+                    if (order) {
+                      order.mpOrderId = String(ord.id)
+                      const payId = ord.transactions?.payments?.[0]?.id
+                      if (payId) order.mpPaymentId = String(payId)
+                      const next = await checkOrder(order)
+                      if (next.status === 'paid') await onPaid(next)
+                      break
+                    }
+                  } catch {
+                    /* no es order, probar payment */
+                  }
+                }
                 const data = await jsonFetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
                   headers: { Authorization: `Bearer ${token}` }
                 })
