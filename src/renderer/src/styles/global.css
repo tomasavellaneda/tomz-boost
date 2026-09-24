@@ -1400,6 +1400,124 @@ select,
   }
 }
 
+.license-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.62);
+}
+.license-modal {
+  width: min(520px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 22px 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+.license-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.license-head h2,
+.license-key-form h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.license-head p,
+.license-lead {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.license-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  flex: none;
+}
+.license-callout,
+.license-need {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--bg-soft);
+}
+.license-callout b,
+.license-need b,
+.license-perks b {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.license-callout p,
+.license-need p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.license-perks {
+  margin-top: 14px;
+}
+.license-perks ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.license-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.license-key-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.license-key-form .brand-mark {
+  margin-bottom: 4px;
+}
+.license-key-form .brand-mark-lock .boot-logo {
+  width: 84px;
+}
+.license-lead {
+  text-align: center;
+  margin-bottom: 4px;
+}
+.license-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.license-key-form .btn {
+  width: 100%;
+  justify-content: center;
+}
+.license-need {
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+}
+
 .lock-screen {
   flex: 1;
   display: flex;

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { NavItem } from '../lib/nav'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import LanguageSwitcher from './LanguageSwitcher'
 
 interface TopbarProps {
@@ -9,10 +10,12 @@ interface TopbarProps {
 
 export default function Topbar({ navItem }: TopbarProps): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [running, setRunning] = useState(false)
   const [lastMessage, setLastMessage] = useState<string | null>(null)
 
   async function handleCleanup(): Promise<void> {
+    if (!(await ensureLicensed())) return
     setRunning(true)
     setLastMessage(null)
     try {

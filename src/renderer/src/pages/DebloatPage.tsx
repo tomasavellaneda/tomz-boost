@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import type { DebloatBackupEntry, DebloatItem } from '../../../shared/types'
 
 export default function DebloatPage(): JSX.Element {
   const { t, lang } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [items, setItems] = useState<DebloatItem[]>([])
   const [removed, setRemoved] = useState<DebloatBackupEntry[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -38,6 +40,7 @@ export default function DebloatPage(): JSX.Element {
   }
 
   async function removeSelected(): Promise<void> {
+    if (!(await ensureLicensed())) return
     const targets = items.filter((i) => selected.has(i.id) && i.installed)
     if (targets.length === 0) return
     setRunning(true)

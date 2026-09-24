@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import Switch from '../components/Switch'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import type { TweakDef } from '../../../shared/types'
 
 export default function FixesPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [tweaks, setTweaks] = useState<TweakDef[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState<string | null>(null)
@@ -17,6 +19,7 @@ export default function FixesPage(): JSX.Element {
   }, [])
 
   async function handleToggle(id: string, next: boolean): Promise<void> {
+    if (!(await ensureLicensed())) return
     setPending(id)
     const res = await window.api.tweaks.toggle(id, next)
     setTweaks((prev) => prev.map((row) => (row.id === id ? { ...row, enabled: res.enabled } : row)))

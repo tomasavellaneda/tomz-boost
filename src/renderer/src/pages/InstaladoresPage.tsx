@@ -3,10 +3,12 @@ import Icon from '../components/Icon'
 import LineIcon from '../components/LineIcon'
 import { APP_ICON } from '../lib/icons'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import type { InstallerApp } from '../../../shared/types'
 
 export default function InstaladoresPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [wingetOk, setWingetOk] = useState<boolean | null>(null)
   const [apps, setApps] = useState<InstallerApp[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,6 +32,7 @@ export default function InstaladoresPage(): JSX.Element {
   }
 
   async function install(app: InstallerApp): Promise<void> {
+    if (!(await ensureLicensed())) return
     setInstallingId(app.id)
     setLogLines([t('install.installingName', { name: app.name })])
     await window.api.installers.install(app.wingetId)

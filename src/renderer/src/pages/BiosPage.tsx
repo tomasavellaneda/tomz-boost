@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import LineIcon from '../components/LineIcon'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import type { BiosInfo } from '../../../shared/types'
 
 export default function BiosPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [info, setInfo] = useState<BiosInfo | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [log, setLog] = useState<string[]>([])
@@ -13,6 +15,11 @@ export default function BiosPage(): JSX.Element {
   useEffect(() => {
     window.api.sysinfo.bios().then(setInfo)
   }, [])
+
+  async function guard(key: string, fn: () => Promise<{ ok: boolean; message?: string; log?: string[]; path?: string }>): Promise<void> {
+    if (!(await ensureLicensed())) return
+    return run(key, fn)
+  }
 
   async function run(key: string, fn: () => Promise<{ ok: boolean; message?: string; log?: string[]; path?: string }>): Promise<void> {
     setBusy(key)
@@ -106,10 +113,10 @@ export default function BiosPage(): JSX.Element {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button className="btn full" disabled={busy === 'auto'} onClick={() => run('auto', () => window.api.bios.autoConfig())}>
+          <button className="btn full" disabled={busy === 'auto'} onClick={() => void guard('auto', () => window.api.bios.autoConfig())}>
             {busy === 'auto' ? t('bios.applying') : t('bios.auto')}
           </button>
-          <button className="btn full" disabled={busy === 'import'} onClick={() => run('import', () => window.api.bios.import())}>
+          <button className="btn full" disabled={busy === 'import'} onClick={() => void guard('import', () => window.api.bios.import())}>
             {t('bios.import')}
           </button>
 
@@ -124,7 +131,7 @@ export default function BiosPage(): JSX.Element {
                 <button
                   className="btn danger"
                   disabled={busy === 'firmware'}
-                  onClick={() => run('firmware', () => window.api.bios.enterFirmware())}
+                  onClick={() => void guard('firmware', () => window.api.bios.enterFirmware())}
                 >
                   {t('bios.confirm')}
                 </button>
