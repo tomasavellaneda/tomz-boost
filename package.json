@@ -1,7 +1,7 @@
 {
   "name": "tomz-boost",
   "productName": "Tomz Boost",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Utilidad de sistema y optimizacion para Windows (monitoreo real + tweaks reales).",
   "author": "Tomz Boost",
@@ -51,7 +51,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
