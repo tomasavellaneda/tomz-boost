@@ -16,6 +16,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
     "dist": "electron-vite build && electron-builder --win",
+    "dist:flow": "node scripts/dist-flow.cjs",
     "key:new": "node scripts/generate-key.cjs",
     "start:bot": "node scripts/discord-key-bot.cjs",
     "bot": "node scripts/discord-key-bot.cjs",
