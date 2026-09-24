@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Switch from '../components/Switch'
 import LineIcon, { type LineIconName } from '../components/LineIcon'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import { translateTweakAlert } from '../lib/tweakAlerts'
 import type { TweakDef } from '../../../shared/types'
 
@@ -55,6 +56,7 @@ const EMPTY_SECTION_REFS: Record<Tab, HTMLElement | null> = {
 
 export default function TweaksPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [active, setActive] = useState<Tab>('general')
   const [tweaks, setTweaks] = useState<TweakDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,6 +116,7 @@ export default function TweaksPage(): JSX.Element {
   }, [loading])
 
   async function applyWin32(preset: string): Promise<void> {
+    if (!(await ensureLicensed())) return
     setWin32Busy(true)
     const res = await window.api.tweaks.setWin32Priority(preset)
     if (res.ok) setWin32Preset(preset)
@@ -121,6 +124,7 @@ export default function TweaksPage(): JSX.Element {
   }
 
   async function resetWin32(): Promise<void> {
+    if (!(await ensureLicensed())) return
     setWin32Busy(true)
     const res = await window.api.tweaks.resetWin32Priority()
     if (res.ok) setWin32Preset(null)
@@ -135,6 +139,7 @@ export default function TweaksPage(): JSX.Element {
   }
 
   async function handleRecommended(): Promise<void> {
+    if (!(await ensureLicensed())) return
     setRecBusy(true)
     try {
       const res = await window.api.tweaks.applyRecommended()
@@ -158,6 +163,7 @@ export default function TweaksPage(): JSX.Element {
   }
 
   async function handleToggle(id: string, next: boolean): Promise<void> {
+    if (!(await ensureLicensed())) return
     setPending(id)
     try {
       const res = await window.api.tweaks.toggle(id, next)

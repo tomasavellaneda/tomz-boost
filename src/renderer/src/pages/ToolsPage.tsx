@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import LineIcon from '../components/LineIcon'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import { useSysInfo } from '../lib/useSysInfo'
 import type { CpuTopology, ProcessInfo } from '../../../shared/types'
 
@@ -15,6 +16,7 @@ const PRIORITIES: { value: string; key: string }[] = [
 
 export default function ToolsPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const { snapshot } = useSysInfo()
   const [topology, setTopology] = useState<CpuTopology | null>(null)
   const [processes, setProcesses] = useState<ProcessInfo[]>([])
@@ -36,6 +38,7 @@ export default function ToolsPage(): JSX.Element {
   }
 
   async function runAutoAffinity(): Promise<void> {
+    if (!(await ensureLicensed())) return
     setAutoRunning(true)
     const res = await window.api.affinity.autoRun()
     setAutoMessage(res.message)
@@ -44,6 +47,7 @@ export default function ToolsPage(): JSX.Element {
   }
 
   async function updatePriority(pid: number, priority: string): Promise<void> {
+    if (!(await ensureLicensed())) return
     setPendingPid(pid)
     await window.api.affinity.setProcess(pid, { priority })
     await load()
@@ -52,6 +56,7 @@ export default function ToolsPage(): JSX.Element {
 
   async function applyPCores(pid: number): Promise<void> {
     if (!topology) return
+    if (!(await ensureLicensed())) return
     setPendingPid(pid)
     await window.api.affinity.setProcess(pid, { affinityMask: topology.pCoreMask })
     await load()

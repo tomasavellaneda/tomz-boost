@@ -4,6 +4,7 @@ import LineChart from '../components/LineChart'
 import Icon from '../components/Icon'
 import { BRAND, brandFromText } from '../lib/icons'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import { useSysInfo } from '../lib/useSysInfo'
 
 type Metric = 'temp' | 'cpu' | 'gpu' | 'ram'
@@ -13,6 +14,7 @@ const RANGE_POINTS: Record<Range, number> = { '1min': 40, '5min': 60, '15min': 6
 
 export default function InicioPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const { snapshot, history } = useSysInfo()
   const [metric, setMetric] = useState<Metric>('temp')
   const [range, setRange] = useState<Range>('1min')
@@ -37,6 +39,7 @@ export default function InicioPage(): JSX.Element {
   const cpuBrand = brandFromText(`${snapshot.cpu.manufacturer} ${snapshot.cpu.brand}`)
 
   async function runAction(key: string, fn: () => Promise<{ message: string }>): Promise<void> {
+    if (!(await ensureLicensed())) return
     setBusyAction(key)
     setActionMessage(null)
     try {

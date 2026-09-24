@@ -1,12 +1,12 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Titlebar from './components/Titlebar'
 import Topbar from './components/Topbar'
 import BootScreen from './components/BootScreen'
 import { ALL_NAV, PageKey } from './lib/nav'
 import { useI18n } from './lib/i18n'
+import { LicenseProvider } from './lib/licenseGate'
 import InicioPage from './pages/InicioPage'
-import ActivatePage from './pages/ActivatePage'
 
 const TweaksPage = lazy(() => import('./pages/TweaksPage'))
 const InstaladoresPage = lazy(() => import('./pages/InstaladoresPage'))
@@ -15,7 +15,7 @@ const ToolsPage = lazy(() => import('./pages/ToolsPage'))
 const DebloatPage = lazy(() => import('./pages/DebloatPage'))
 const BiosPage = lazy(() => import('./pages/BiosPage'))
 
-type Phase = 'boot' | 'lock' | 'entry' | 'app'
+type Phase = 'boot' | 'app'
 
 function PageFallback(): JSX.Element {
   return (
@@ -28,38 +28,23 @@ function PageFallback(): JSX.Element {
 export default function App(): JSX.Element {
   const [active, setActive] = useState<PageKey>('inicio')
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
-  const [licensed, setLicensed] = useState<boolean | null>(null)
   const [phase, setPhase] = useState<Phase>('boot')
-  const [overlay, setOverlay] = useState<'boot' | 'entry' | null>('boot')
-  const [hold, setHold] = useState(false)
+  const [overlay, setOverlay] = useState<'boot' | null>('boot')
   const { t, lang } = useI18n()
-  const licensedRef = useRef(licensed)
-  const overlayRef = useRef(overlay)
-  licensedRef.current = licensed
-  overlayRef.current = overlay
 
   useEffect(() => {
     window.api.system.isElevated().then(setIsAdmin)
-    window.api.license.status().then((s) => setLicensed(s.ok))
   }, [])
-
-  useEffect(() => {
-    if (!hold || licensed === null) return
-    setHold(false)
-    setPhase(licensed ? 'app' : 'lock')
-  }, [hold, licensed])
 
   useEffect(() => {
     void window.api.discord.setLang(lang)
   }, [lang])
 
   useEffect(() => {
-    if (licensed) void window.api.discord.setPage(active)
-    else if (licensed === false) void window.api.discord.setPage('lock')
-  }, [active, licensed])
+    void window.api.discord.setPage(active)
+  }, [active])
 
   useEffect(() => {
-    if (!licensed) return
     const timer = window.setTimeout(() => {
       void import('./pages/TweaksPage')
       void import('./pages/InstaladoresPage')
@@ -69,16 +54,10 @@ export default function App(): JSX.Element {
       void import('./pages/BiosPage')
     }, 280)
     return () => window.clearTimeout(timer)
-  }, [licensed])
+  }, [])
 
   function onReveal(): void {
-    if (overlayRef.current === 'entry') {
-      setPhase('app')
-      return
-    }
-    if (licensedRef.current === true) setPhase('app')
-    else if (licensedRef.current === false) setPhase('lock')
-    else setHold(true)
+    setPhase('app')
   }
 
   function onSplashDone(): void {
@@ -87,21 +66,12 @@ export default function App(): JSX.Element {
 
   const navItem = ALL_NAV.find((n) => n.key === active) ?? ALL_NAV[0]
   const showSplash = overlay !== null
-  const showLock = phase === 'lock' && overlay !== 'entry'
   const showApp = phase === 'app'
 
   return (
+    <LicenseProvider>
     <div className={`app-shell ${showApp ? '' : 'locked'}`}>
       <Titlebar />
-      {showLock && (
-        <ActivatePage
-          onUnlocked={() => {
-            setLicensed(true)
-            setPhase('entry')
-            setOverlay('entry')
-          }}
-        />
-      )}
       {showApp && (
         <>
           <Sidebar active={active} onNavigate={setActive} adminMode={!!isAdmin} />
@@ -134,5 +104,6 @@ export default function App(): JSX.Element {
       )}
       {showSplash && <BootScreen key={overlay} onReveal={onReveal} onDone={onSplashDone} />}
     </div>
+    </LicenseProvider>
   )
 }

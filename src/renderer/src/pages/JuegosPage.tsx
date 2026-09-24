@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import Switch from '../components/Switch'
 import { useI18n } from '../lib/i18n'
+import { useLicense } from '../lib/licenseGate'
 import type { GameEntry, GameProfileKey, GamesOpResult } from '../../../shared/types'
 
 export default function JuegosPage(): JSX.Element {
   const { t } = useI18n()
+  const { ensureLicensed } = useLicense()
   const [games, setGames] = useState<GameEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -35,6 +37,7 @@ export default function JuegosPage(): JSX.Element {
   }
 
   async function addGame(): Promise<void> {
+    if (!(await ensureLicensed())) return
     try {
       applyList(await window.api.games.add())
     } catch (err) {
@@ -43,6 +46,7 @@ export default function JuegosPage(): JSX.Element {
   }
 
   async function removeGame(id: string): Promise<void> {
+    if (!(await ensureLicensed())) return
     try {
       applyList(await window.api.games.remove(id))
     } catch (err) {
@@ -51,6 +55,7 @@ export default function JuegosPage(): JSX.Element {
   }
 
   async function setProfile(id: string, profile: GameProfileKey): Promise<void> {
+    if (!(await ensureLicensed())) return
     try {
       applyList(await window.api.games.setProfile(id, profile))
     } catch (err) {
@@ -59,6 +64,7 @@ export default function JuegosPage(): JSX.Element {
   }
 
   async function toggleAuto(id: string, enabled: boolean): Promise<void> {
+    if (!(await ensureLicensed())) return
     try {
       applyList(await window.api.games.setAutoWatch(id, enabled))
     } catch (err) {
@@ -67,6 +73,7 @@ export default function JuegosPage(): JSX.Element {
   }
 
   async function applyNow(id: string): Promise<void> {
+    if (!(await ensureLicensed())) return
     setBusyId(id)
     try {
       const res = await window.api.games.applyNow(id)
