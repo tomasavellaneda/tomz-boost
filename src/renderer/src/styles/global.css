@@ -1517,6 +1517,20 @@ select,
   margin-top: 6px;
   text-align: left;
 }
+.license-site {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.license-site:hover {
+  color: var(--accent);
+}
 
 .lock-screen {
   flex: 1;

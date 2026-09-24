@@ -11,8 +11,9 @@ import { findGpuAdapterKeys } from './tweaks/gpuRegistry'
 import { onDiscordProfile, startDiscordPresence, stopDiscordPresence } from './discordPresence'
 import { initLicense } from './license'
 
-const APP_NAME = 'Tomz Boost'
-const APP_USER_MODEL_ID = 'com.tomzboost.app'
+const flowPreview = process.env.TOMZ_VARIANT === 'flow'
+const APP_NAME = flowPreview ? 'Tomz Boost Flow' : 'Tomz Boost'
+const APP_USER_MODEL_ID = flowPreview ? 'com.tomzboost.flow' : 'com.tomzboost.app'
 
 let mainWindow: BrowserWindow | null = null
 

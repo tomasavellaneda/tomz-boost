@@ -70,10 +70,14 @@ function licensePath(): string {
 
 function readStatus(): LicenseStatus {
   // Solo `npm run dev` (app.isPackaged === false). En el .exe empaquetado
-  // esta rama no existe como bypass: aunque el usuario ponga TOMZ_DEV_UNLOCK=1
-  // en las variables de entorno de Windows, se ignora.
-  if (!app.isPackaged && process.env.TOMZ_DEV_UNLOCK === '1') {
-    return { ok: true, key: 'DEV', hwid: machineHwid || null }
+  // esta rama no existe: TOMZ_DEV_KEY y TOMZ_DEV_UNLOCK se ignoran.
+  if (!app.isPackaged) {
+    if (process.env.TOMZ_DEV_KEY === 'off') {
+      return { ok: false, key: null, hwid: machineHwid || null }
+    }
+    if (process.env.TOMZ_DEV_KEY === 'on' || process.env.TOMZ_DEV_UNLOCK === '1') {
+      return { ok: true, key: 'DEV', hwid: machineHwid || null }
+    }
   }
   try {
     if (!existsSync(licensePath())) return { ok: false, key: null, hwid: machineHwid || null }

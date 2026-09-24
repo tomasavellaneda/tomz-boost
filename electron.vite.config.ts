@@ -2,8 +2,13 @@ import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
+const variant = process.env.TOMZ_VARIANT === 'flow' ? 'flow' : 'release'
+
 export default defineConfig({
   main: {
+    define: {
+      'process.env.TOMZ_VARIANT': JSON.stringify(variant)
+    },
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {

@@ -7,16 +7,27 @@ Copia de trabajo para testear la **app Electron** en tu PC sin tocar Railway ni 
 ```bash
 git clone https://github.com/tomasavellaneda/tomz-boost.git
 cd tomz-boost
-git checkout -b local-dev
+git checkout local-dev
 npm install
 ```
 
-### Correr la app
+### Correr desde PowerShell o Git, sin .exe
 
-```bash
-npm run typecheck
-npm run dev
+El switch solo existe en este modo. El instalador no lo toma.
+
+Key desactivada, para ver el flujo (recorrer la app y el cartel al aplicar):
+
+```powershell
+npm run dev -- --key off
 ```
+
+Key activada, app desbloqueada:
+
+```powershell
+npm run dev -- --key on
+```
+
+En Git Bash es el mismo comando. `npm run dev:local` es un alias de `--key on`.
 
 ### Build de prueba (instalador, sin publicarlo)
 

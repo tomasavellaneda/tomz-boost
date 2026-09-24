@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useRef, useState, type FormEvent,
 import BrandMark from '../components/BrandMark'
 import { useI18n } from './i18n'
 
+const SITE_URL = 'https://tomzboost-site-tomasavellaneda.vercel.app'
+
 interface LicenseCtx {
   licensed: boolean
   ensureLicensed: () => Promise<boolean>
@@ -111,7 +113,7 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
                   </div>
                 </div>
                 <div className="license-callout">
-                  <b>{t('auth.resource', { action: t('auth.action') })}</b>
+                  <b>{t('auth.resource')}</b>
                   <p>{t('auth.body')}</p>
                 </div>
                 <div className="license-perks">
@@ -156,6 +158,9 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
                 <div className="license-need">
                   <b>{t('lock.needTitle')}</b>
                   <p>{t('lock.needBody')}</p>
+                  <button className="license-site" type="button" onClick={() => void window.api.system.openExternal(SITE_URL)}>
+                    {t('lock.site')}
+                  </button>
                 </div>
               </form>
             )}
