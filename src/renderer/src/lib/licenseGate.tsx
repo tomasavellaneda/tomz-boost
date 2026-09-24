@@ -113,7 +113,7 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
                   </div>
                 </div>
                 <div className="license-callout">
-                  <b>{t('auth.resource', { action: t('auth.action') })}</b>
+                  <b>{t('auth.resource')}</b>
                   <p>{t('auth.body')}</p>
                 </div>
                 <div className="license-perks">
