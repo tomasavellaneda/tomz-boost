@@ -286,6 +286,7 @@ const es: Dict = {
   'lock.invalid': 'Clave inválida.',
   'lock.needTitle': '¿Necesitás una clave de licencia?',
   'lock.needBody': 'Conseguí una licencia para desbloquear todas las funciones premium.',
+  'lock.site': 'Visitar el sitio de Tomz Boost',
   'boot.loading': 'Iniciando',
   'boot.ready': 'Listo'
 }
@@ -564,6 +565,7 @@ const en: Dict = {
   'lock.invalid': 'Invalid key.',
   'lock.needTitle': 'Need a license key?',
   'lock.needBody': 'Get a license to unlock every premium feature.',
+  'lock.site': 'Visit the Tomz Boost website',
   'boot.loading': 'Starting',
   'boot.ready': 'Ready'
 }
@@ -842,6 +844,7 @@ const pt: Dict = {
   'lock.invalid': 'Chave inválida.',
   'lock.needTitle': 'Precisa de uma chave de licença?',
   'lock.needBody': 'Consiga uma licença para desbloquear todos os recursos premium.',
+  'lock.site': 'Visitar o site do Tomz Boost',
   'boot.loading': 'Iniciando',
   'boot.ready': 'Pronto'
 }
