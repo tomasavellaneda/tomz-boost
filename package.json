@@ -35,6 +35,7 @@
       "buildResources": "build",
       "output": "release"
     },
+    "npmRebuild": false,
     "files": [
       "out/**/*"
     ],
