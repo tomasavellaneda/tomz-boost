@@ -9,8 +9,8 @@
   "main": "out/main/index.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "electron-vite dev",
-    "dev:local": "node scripts/dev-unlocked.cjs",
+    "dev": "node scripts/dev.cjs",
+    "dev:local": "node scripts/dev.cjs --key on",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron-vite preview",

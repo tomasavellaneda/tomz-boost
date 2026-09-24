@@ -11,15 +11,23 @@ git checkout local-dev
 npm install
 ```
 
-### Correr la app sin key
+### Correr desde PowerShell o Git, sin .exe
 
-`dev:local` desbloquea la app solo en este modo de desarrollo. El instalador (`.exe`) no usa este atajo: ahí la licencia se sigue pidiendo al aplicar un cambio.
+El switch solo existe en este modo. El instalador no lo toma.
 
-```bash
-npm run dev:local
+Key desactivada, para ver el flujo (recorrer la app y el cartel al aplicar):
+
+```powershell
+npm run dev -- --key off
 ```
 
-Para ver el cartel de la key, usá `npm run dev` (sin el desbloqueo).
+Key activada, app desbloqueada:
+
+```powershell
+npm run dev -- --key on
+```
+
+En Git Bash es el mismo comando. `npm run dev:local` es un alias de `--key on`.
 
 ### Build de prueba (instalador, sin publicarlo)
 
