@@ -10,6 +10,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:local": "node scripts/dev-unlocked.cjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron-vite preview",

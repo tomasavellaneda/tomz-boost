@@ -7,16 +7,19 @@ Copia de trabajo para testear la **app Electron** en tu PC sin tocar Railway ni 
 ```bash
 git clone https://github.com/tomasavellaneda/tomz-boost.git
 cd tomz-boost
-git checkout -b local-dev
+git checkout local-dev
 npm install
 ```
 
-### Correr la app
+### Correr la app sin key
+
+`dev:local` desbloquea la app solo en este modo de desarrollo. El instalador (`.exe`) no usa este atajo: ahí la licencia se sigue pidiendo al aplicar un cambio.
 
 ```bash
-npm run typecheck
-npm run dev
+npm run dev:local
 ```
+
+Para ver el cartel de la key, usá `npm run dev` (sin el desbloqueo).
 
 ### Build de prueba (instalador, sin publicarlo)
 
