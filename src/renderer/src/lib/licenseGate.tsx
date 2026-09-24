@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type FormEvent,
 import BrandMark from '../components/BrandMark'
 import { useI18n } from './i18n'
 
-const SITE_URL = 'https://tomzboost.app'
+const SITE_URL = 'https://tomzboost-site-tomasavellaneda.vercel.app'
 
 interface LicenseCtx {
   licensed: boolean
