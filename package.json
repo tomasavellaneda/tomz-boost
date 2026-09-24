@@ -1,7 +1,7 @@
 {
   "name": "tomz-boost",
   "productName": "Tomz Boost",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Utilidad de sistema y optimizacion para Windows (monitoreo real + tweaks reales).",
   "author": "Tomz Boost",
@@ -30,16 +30,35 @@
     "appId": "com.tomzboost.app",
     "productName": "Tomz Boost",
     "copyright": "Copyright © Tomz Boost",
+    "artifactName": "Tomz-Boost-Setup-${version}.${ext}",
     "directories": {
-      "buildResources": "build"
+      "buildResources": "build",
+      "output": "release"
     },
+    "files": [
+      "out/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "build/icon.ico"
+      }
+    ],
     "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
       "icon": "build/icon.ico",
       "executableName": "Tomz Boost"
     },
     "nsis": {
       "shortcutName": "Tomz Boost",
-      "uninstallDisplayName": "Tomz Boost"
+      "uninstallDisplayName": "Tomz Boost",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   },
   "dependencies": {
