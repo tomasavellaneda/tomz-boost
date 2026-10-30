@@ -14,6 +14,7 @@ const JuegosPage = lazy(() => import('./pages/JuegosPage'))
 const ToolsPage = lazy(() => import('./pages/ToolsPage'))
 const DebloatPage = lazy(() => import('./pages/DebloatPage'))
 const BiosPage = lazy(() => import('./pages/BiosPage'))
+const LicenciaPage = lazy(() => import('./pages/LicenciaPage'))
 
 type Phase = 'boot' | 'app'
 
@@ -96,6 +97,7 @@ export default function App(): JSX.Element {
                   {active === 'affinity' && <ToolsPage />}
                   {active === 'debloat' && <DebloatPage />}
                   {active === 'bios' && <BiosPage />}
+                  {active === 'licencia' && <LicenciaPage />}
                 </Suspense>
               </div>
             </div>

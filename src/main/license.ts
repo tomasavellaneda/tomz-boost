@@ -7,6 +7,9 @@ import { getMachineHwid, normalizeHwid } from './hwid'
 /** Mantener igual que scripts/generate-key.cjs */
 const LICENSE_SECRET = 'tomz-boost-license-v1-7f3c9a1e4b8d2065'
 
+/** Sitio que registra a qué equipo queda atada cada clave. */
+const ACTIVATE_URL = 'https://tomzboost.online/api/license/activate'
+
 export interface LicenseStatus {
   ok: boolean
   key: string | null
@@ -111,15 +114,51 @@ export function isLicensed(): boolean {
   return getLicenseStatus().ok
 }
 
-export function activateLicense(raw: string): { ok: boolean; message: string } {
+/**
+ * Ata la clave a este equipo la primera vez. Devuelve el veredicto del sitio:
+ * 'ok' | 'bound_elsewhere' | 'invalid' | 'offline'. Sin conexion se permite
+ * activar igual para no dejar a nadie afuera.
+ */
+async function claimRemote(key: string, hwid: string): Promise<'ok' | 'bound_elsewhere' | 'invalid' | 'offline'> {
+  try {
+    const response = await fetch(ACTIVATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, hwid }),
+    })
+    if (response.ok) return 'ok'
+    if (response.status === 409) return 'bound_elsewhere'
+    if (response.status === 400) return 'invalid'
+    return 'offline'
+  } catch {
+    return 'offline'
+  }
+}
+
+export async function activateLicense(raw: string): Promise<{ ok: boolean; message: string }> {
   if (!isValidLicenseKey(raw, machineHwid || undefined)) {
     return { ok: false, message: 'Clave invalida.' }
   }
+  if (!machineHwid) {
+    return { ok: false, message: 'No pudimos leer el ID de este equipo.' }
+  }
   const compact = normalizeKey(raw)
   const key = formatKey(compact.slice(4))
+
+  const remote = await claimRemote(key, machineHwid)
+  if (remote === 'bound_elsewhere') {
+    return { ok: false, message: 'Esta clave ya esta activada en otro equipo.' }
+  }
+  if (remote === 'invalid') {
+    return { ok: false, message: 'Clave invalida.' }
+  }
+
   const payload: LicenseFile = { key, hwid: machineHwid, activatedAt: Date.now() }
   writeFileSync(licensePath(), JSON.stringify(payload, null, 2), 'utf8')
   cached = { ok: true, key, hwid: machineHwid }
-  return { ok: true, message: 'App desbloqueada.' }
+  return {
+    ok: true,
+    message: remote === 'offline' ? 'Activada sin conexion.' : 'App desbloqueada.',
+  }
 }
 

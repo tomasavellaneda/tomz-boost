@@ -26,8 +26,8 @@ function deny(): { ok: false; message: string } {
 
 export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('license:status', () => getLicenseStatus())
-  ipcMain.handle('license:activate', (_e, key: string) => {
-    const res = activateLicense(String(key ?? ''))
+  ipcMain.handle('license:activate', async (_e, key: string) => {
+    const res = await activateLicense(String(key ?? ''))
     if (res.ok) setDiscordPage('inicio')
     return res
   })

@@ -79,7 +79,7 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
     try {
       const res = await window.api.license.activate(key)
       if (!res.ok) {
-        setError(t('lock.invalid'))
+        setError(res.message || t('lock.invalid'))
         return
       }
       setLicensed(true)

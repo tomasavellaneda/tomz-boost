@@ -8,6 +8,7 @@ export type LineIconName =
   | 'affinity'
   | 'debloat'
   | 'bios'
+  | 'licencia'
   | 'fixes'
   | 'package'
   | 'cpu'
@@ -24,6 +25,14 @@ interface LineIconProps {
 }
 
 const PATHS: Record<LineIconName, JSX.Element> = {
+  licencia: (
+    <>
+      <circle cx="8" cy="15" r="4" />
+      <line x1="11" y1="12" x2="20" y2="3" />
+      <line x1="17" y1="3" x2="20" y2="6" />
+      <line x1="14.5" y1="5.5" x2="17.5" y2="8.5" />
+    </>
+  ),
   inicio: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.2" />
@@ -158,5 +167,6 @@ export const PAGE_ICON: Record<PageKey, LineIconName> = {
   juegos: 'juegos',
   affinity: 'affinity',
   debloat: 'debloat',
-  bios: 'bios'
+  bios: 'bios',
+  licencia: 'licencia'
 }
