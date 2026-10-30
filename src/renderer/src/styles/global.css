@@ -1614,6 +1614,41 @@ select,
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
 }
+.license-hwid {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  text-align: left;
+}
+.license-hwid b {
+  font-size: 12px;
+  color: var(--text);
+}
+.license-hwid p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.license-hwid-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.license-hwid-code code {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+.license-hwid-code .btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
 .lock-error {
   width: 100%;
   font-size: 12px;

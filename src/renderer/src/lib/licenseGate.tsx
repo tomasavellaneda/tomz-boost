@@ -26,6 +26,8 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hwid, setHwid] = useState('')
+  const [copied, setCopied] = useState(false)
   const licensedRef = useRef<boolean | null>(null)
   const waiters = useRef<Array<(ok: boolean) => void>>([])
   licensedRef.current = licensed
@@ -35,6 +37,7 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
     window.api.license.status().then((status) => {
       if (!alive) return
       setLicensed(status.ok)
+      setHwid(status.hwid || '')
     })
     return () => {
       alive = false
@@ -63,6 +66,7 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
     return window.api.license.status().then((status) => {
       licensedRef.current = status.ok
       setLicensed(status.ok)
+      setHwid(status.hwid || '')
       if (status.ok) return true
       return openPrompt()
     })
@@ -151,6 +155,25 @@ export function LicenseProvider({ children }: { children: ReactNode }): JSX.Elem
                     autoFocus
                   />
                 </label>
+                {!!hwid && (
+                  <div className="license-hwid">
+                    <b>{t('lock.hwidTitle')}</b>
+                    <p>{t('lock.hwidBody')}</p>
+                    <div className="license-hwid-code">
+                      <code>{hwid}</code>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(hwid)
+                          setCopied(true)
+                        }}
+                      >
+                        {copied ? t('lock.copied') : t('lock.copy')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {error && <div className="lock-error">{error}</div>}
                 <button className="btn primary" type="submit" disabled={busy || key.trim().length < 8}>
                   {busy ? t('lock.unlocking') : t('lock.unlock')}

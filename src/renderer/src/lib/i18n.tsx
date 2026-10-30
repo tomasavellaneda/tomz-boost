@@ -286,6 +286,10 @@ const es: Dict = {
   'lock.needTitle': '¿Necesitás una clave de licencia?',
   'lock.needBody': 'Conseguí una licencia para desbloquear todas las funciones premium.',
   'lock.site': 'Visitar el sitio de Tomz Boost',
+  'lock.hwidTitle': 'Tu ID de equipo',
+  'lock.hwidBody': 'Pasale este código a soporte para que te genere la clave. Queda atada a esta PC.',
+  'lock.copy': 'Copiar',
+  'lock.copied': '¡Copiado!',
   'boot.loading': 'Iniciando',
   'boot.ready': 'Listo'
 }
@@ -564,6 +568,10 @@ const en: Dict = {
   'lock.needTitle': 'Need a license key?',
   'lock.needBody': 'Get a license to unlock every premium feature.',
   'lock.site': 'Visit the Tomz Boost website',
+  'lock.hwidTitle': 'Your machine ID',
+  'lock.hwidBody': 'Send this code to support to get your key. It is bound to this PC.',
+  'lock.copy': 'Copy',
+  'lock.copied': 'Copied!',
   'boot.loading': 'Starting',
   'boot.ready': 'Ready'
 }
@@ -842,6 +850,10 @@ const pt: Dict = {
   'lock.needTitle': 'Precisa de uma chave de licença?',
   'lock.needBody': 'Consiga uma licença para desbloquear todos os recursos premium.',
   'lock.site': 'Visitar o site do Tomz Boost',
+  'lock.hwidTitle': 'Seu ID de equipamento',
+  'lock.hwidBody': 'Envie este código ao suporte para receber a chave. Ela fica vinculada a este PC.',
+  'lock.copy': 'Copiar',
+  'lock.copied': 'Copiado!',
   'boot.loading': 'Iniciando',
   'boot.ready': 'Pronto'
 }
